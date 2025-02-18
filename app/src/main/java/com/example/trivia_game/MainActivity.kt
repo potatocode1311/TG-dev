@@ -1,11 +1,21 @@
 package com.example.trivia_game
 
 import android.app.AlertDialog
+import android.content.Context
 import android.content.DialogInterface
+import android.graphics.Rect
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.text.InputType
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
+import android.view.WindowManager
+import android.view.inputmethod.InputMethodManager
 import android.widget.Button
+import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -13,6 +23,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.trivia_game.databinding.ActivityMainBinding
 import com.google.android.material.textfield.TextInputLayout
@@ -20,8 +31,10 @@ import com.google.android.material.textfield.TextInputLayout
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding : ActivityMainBinding
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         enableEdgeToEdge()
@@ -54,6 +67,52 @@ class MainActivity : AppCompatActivity() {
         }
 
     }
+
+    private fun showTeamNameInputDialog() {
+        val builder = AlertDialog.Builder(this)
+        builder.setTitle("Enter Team Name")
+
+        // Set up the input field
+        val input = EditText(this)
+        input.inputType = InputType.TYPE_CLASS_TEXT
+        input.hint = "Team Name"
+
+        // Add some padding around the EditText
+        val container = FrameLayout(this)
+        val params = FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+        params.leftMargin = 50
+        params.rightMargin = 50
+        input.layoutParams = params
+        container.addView(input)
+
+        builder.setView(container)
+
+        // Set up the buttons
+        builder.setPositiveButton("OK") { _, _ ->
+            val teamName = input.text.toString()
+            if (teamName.isNotBlank()) {
+                addTeam(teamName)
+                Toast.makeText(this, "Team '$teamName' added!", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Team name cannot be empty!", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        builder.setNegativeButton("Cancel") { dialog, _ ->
+            dialog.cancel()
+        }
+
+        val dialog = builder.create()
+
+
+        dialog.show()
+        // Show keyboard automatically when dialog appears
+        input.requestFocus()
+        dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE)
+    }
     private fun showConfirmationDialog(actionName: String) {
         val builder = AlertDialog.Builder(this)
         builder.setTitle("Confirm Action")
@@ -83,21 +142,7 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Action confirmed!", Toast.LENGTH_SHORT).show()
             when (actionName) {
                 "Add Team" -> {
-                    binding.teamInputContainer.visibility = View.VISIBLE
-                    binding.confirmTeam.visibility = View.VISIBLE
-                    binding.confirmTeam.setOnClickListener {
-                        val teamName = binding.teamInputLayout.text.toString()
-                        if (teamName.isBlank()) {
-                            Toast.makeText(this, "Please enter a team name", Toast.LENGTH_SHORT)
-                                .show()
-                        } else {
-                            addTeam(teamName)
-                            binding.teamInputLayout.text?.clear() //clear team name input after a team has successfully been made
-                            binding.teamInputContainer.visibility = View.GONE
-                            binding.confirmTeam.visibility = View.GONE
-                            Toast.makeText(this, "Team added!", Toast.LENGTH_SHORT).show()
-                        }
-                    }
+                    showTeamNameInputDialog()
                 }
             }
         }
