@@ -1,18 +1,13 @@
 package com.example.trivia_game
 
 import android.app.AlertDialog
-import android.content.Context
 import android.content.DialogInterface
-import android.graphics.Rect
+import android.graphics.Color
+import android.graphics.Typeface
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.text.InputType
-import android.util.Log
-import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
-import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
@@ -21,50 +16,48 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.trivia_game.databinding.ActivityMainBinding
-import com.google.android.material.textfield.TextInputLayout
 
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding : ActivityMainBinding
+    private var roundNumber = 1
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        //main activity initialization
         WindowCompat.setDecorFitsSystemWindows(window, false)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // Initialize the round number display
+        binding.roundNumber.text = "Round: $roundNumber"
         enableEdgeToEdge()
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+        //button initialization
         val button1 = findViewById<Button>(R.id.newGame)
         val button2 = findViewById<Button>(R.id.addTeam)
-        val button3 = findViewById<Button>(R.id.addPoints)
-        val button4 = findViewById<Button>(R.id.subtractPoints)
-        val button5 = findViewById<Button>(R.id.nextRound)
+        val button3 = findViewById<Button>(R.id.nextRound)
 
-
+        //show confirmation dialog boxes when buttons are pushed
         button1.setOnClickListener {
-            showConfirmationDialog("New Game") // Pass a message specific to button 1
+            showConfirmationDialog("New Game")
         }
         button2.setOnClickListener {
-            showConfirmationDialog("Add Team") // Pass a message specific to button 2
+            showConfirmationDialog("Add Team")
         }
         button3.setOnClickListener {
-            showConfirmationDialog("Add Points") // Pass a message specific to button 3
+            showConfirmationDialog("Next Round")
         }
-        button4.setOnClickListener {
-            showConfirmationDialog("Subtract Points") // Pass a message specific to button 3
-        }
-        button5.setOnClickListener {
-            showConfirmationDialog("Next Round") // Pass a message specific to button 3
-        }
+
+
 
     }
 
@@ -125,13 +118,6 @@ class MainActivity : AppCompatActivity() {
                 builder.setMessage("Are you sure you want to make a new team?")
             }
 
-            "Add Points" -> {
-                builder.setMessage("Are you sure you want to add points to a team?")
-            }
-
-            "Subtract Points" -> {
-                builder.setMessage("Are you sure you want to subtract points to a team?")
-            }
             "Next Round" -> {
                 builder.setMessage("Are you sure you want to proceed to the next round?")
             }
@@ -142,7 +128,26 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Action confirmed!", Toast.LENGTH_SHORT).show()
             when (actionName) {
                 "Add Team" -> {
+                    //create team name dialog box to enter a team name and display it
                     showTeamNameInputDialog()
+                }
+
+                "Next Round" -> {
+                    //increment round number
+                    roundNumber++
+                    //update round container with new round number
+                    binding.roundNumber.text = "Round: $roundNumber"
+
+                }
+                "New Game" -> {
+
+                    //clear the teamsContainer
+                    binding.teamsContainer.removeAllViews()
+                    //reset round number
+                    roundNumber = 1
+                    teams.clear()
+                    binding.roundNumber.text = "Round: $roundNumber"
+
                 }
             }
         }
@@ -150,110 +155,134 @@ class MainActivity : AppCompatActivity() {
                 //"Action 3" -> { /* Code for action 3 */ }
 
         builder.setNegativeButton("No") { dialog: DialogInterface, id: Int ->
-            // User cancelled the dialog
+            //user cancelled the dialog
             Toast.makeText(this, "Action cancelled!", Toast.LENGTH_SHORT).show()
             dialog.dismiss()
         }
         val dialog = builder.create()
         dialog.show()
     }
+    //data class for team that initializes it as a string and defaults score to 0
     data class Team(
         val name: String,
-        var score: Int = 0  // Starting score of 0
+        var score: Int = 0
     )
     private val teams = mutableListOf<Team>()
+    //add teams function that adds teams and updates ui
     private fun addTeam(name: String) {
         val newTeam = Team(name)
         teams.add(newTeam)
-        displayTeams()  // Update the UI
+        displayTeams()
     }
-    private fun displayTeams() {
-        binding.teamsContainer.removeAllViews()  // Clear existing views
 
-        teams.forEach { team ->
-            // Create a horizontal layout for each team
+    //function to display teams in the scrollview
+    private fun displayTeams() {
+        binding.teamsContainer.removeAllViews()
+
+        // Layout for teams to be displayed
+        teams.forEachIndexed { index, team ->
             val teamLayout = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply {
-                    setMargins(0, 0, 0, 16)  // Add some spacing between teams
+                    setMargins(0, 0, 0, 16)
                 }
+                setPadding(16, 16, 16, 16)
+
+                // Sets unscored teams to a gray color
+                setBackgroundResource(R.drawable.team_card_background_unscored)
             }
-            // Add team name
-            val nameView = TextView(this).apply {
-                text = team.name
+
+            // Team name and score in a vertical layout (left side)
+            val infoLayout = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
                 layoutParams = LinearLayout.LayoutParams(
                     0,
                     LinearLayout.LayoutParams.WRAP_CONTENT,
-                    1f  // Take up available space
+                    1f
                 )
-                textSize = 18f
             }
-            teamLayout.addView(nameView)
-            // Add score
+
+            // Team name styling
+            val nameView = TextView(this).apply {
+                text = team.name
+                textSize = 18f
+                setTextColor(Color.BLACK)
+                typeface = Typeface.DEFAULT_BOLD
+            }
+            infoLayout.addView(nameView)
+
+            // Score styling
             val scoreView = TextView(this).apply {
                 text = "Score: ${team.score}"
+                textSize = 16f
+                setTextColor(Color.DKGRAY)
+            }
+            infoLayout.addView(scoreView)
+
+            teamLayout.addView(infoLayout)
+
+            //button container for +/- buttons
+            val buttonContainer = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply {
-                    marginStart = 16
-                }
-                textSize = 18f
+                )
             }
-            teamLayout.addView(scoreView)
 
+            //add points button using buttonContainer and functionality to add points
+            val addButton = Button(this).apply {
+                text = "+"
+                layoutParams = LinearLayout.LayoutParams(
+                    dpToPx(40),
+                    dpToPx(40)
+                ).apply {
+                    marginEnd = dpToPx(8)  // Margin between buttons
+                }
+                //when + button is pushed, update team score
+                setOnClickListener {
+                    updateTeamScore(index, 1)
+                    //TODO:change background color and update view when button is pushed
+                }
+            }
+            buttonContainer.addView(addButton)
+
+            //subtract points button using buttonContainer and functionality to subtract points
+            val subtractButton = Button(this).apply {
+                text = "-"
+                layoutParams = LinearLayout.LayoutParams(
+                    dpToPx(40),  // Width in dp
+                    dpToPx(40)   // Height in dp
+                )
+                setOnClickListener {
+                    updateTeamScore(index, -1)
+                }
+            }
+            buttonContainer.addView(subtractButton)
+
+            teamLayout.addView(buttonContainer)
             binding.teamsContainer.addView(teamLayout)
         }
+    }
 
-        }
+    //helper function for dp to pixel conversion
+    private fun dpToPx(dp: Int): Int {
+        return (dp * resources.displayMetrics.density).toInt()
+    }
+
+    //function to update score when +/- buttons are used
     private fun updateTeamScore(teamIndex: Int, points: Int) {
         if (teamIndex in teams.indices) {
             teams[teamIndex].score += points
-            displayTeams()  // Refresh the display
+            displayTeams()
+            Toast.makeText(
+                this,
+                "${teams[teamIndex].name}: ${if (points > 0) "+" else ""}$points points",
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
-    /*private fun addNewTeam() {
-        val teamName = binding.teamNameEditText.text.toString()
-        if (teamName.isBlank()) {
-            Toast.makeText(this, "Please enter a team name", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val newTeam = Team(teamName)
-        teams.add(newTeam)
-
-        // Create the team's view dynamically
-        val teamLayout = LinearLayout(this)
-        teamLayout.orientation = LinearLayout.HORIZONTAL
-        val params = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        )
-        teamLayout.layoutParams = params
-
-        val teamNameTextView = TextView(this)
-        teamNameTextView.text = teamName
-        teamNameTextView.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) // Weight to take up space
-        teamLayout.addView(teamNameTextView)
-
-        val scoreTextView = TextView(this)
-        scoreTextView.text = "0"
-        scoreTextView.id = newTeam.id // Store the ID for easy access later
-        scoreTextView.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        teamLayout.addView(scoreTextView)
-
-        val incrementButton = Button(this)
-        incrementButton.text = "+"
-        incrementButton.setOnClickListener {
-            incrementScore(newTeam)
-        }
-        teamLayout.addView(incrementButton)
-
-        binding.teamsContainer.addView(teamLayout) // Add to the main layout
-        binding.teamNameEditText.text.clear() // Clear the EditText
-    }*/
-
 }

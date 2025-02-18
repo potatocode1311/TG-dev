@@ -14,39 +14,39 @@
         tools:context=".MainActivity">
 
 
-        <ScrollView
-            android:id="@+id/teamsScrollView"
-            android:layout_width="408dp"
-            android:layout_height="566dp"
-            android:layout_marginTop="164dp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="1.0"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
+    <ScrollView
+        android:id="@+id/teamsScrollView"
+        android:layout_width="410dp"
+        android:layout_height="523dp"
+        android:layout_marginTop="204dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
-            <LinearLayout
-                android:id="@+id/teamsContainer"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="0dp"
-                android:orientation="vertical"
-                android:padding="16dp"
-                app:layout_constraintTop_toTopOf="parent"
-                tools:layout_editor_absoluteX="0dp">
-
-            </LinearLayout>
-        </ScrollView>
-
-        <Button
-            android:id="@+id/newGame"
-            android:layout_width="117dp"
-            android:layout_height="55dp"
-            android:layout_marginStart="75dp"
-            android:text="New Game"
-            app:layout_constraintStart_toStartOf="parent"
+        <LinearLayout
+            android:id="@+id/teamsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:orientation="vertical"
+            android:padding="16dp"
             app:layout_constraintTop_toTopOf="parent"
-            tools:ignore="MissingConstraints" />
+            tools:layout_editor_absoluteX="0dp">
 
+        </LinearLayout>
+    </ScrollView>
+
+
+    <Button
+        android:id="@+id/newGame"
+        android:layout_width="117dp"
+        android:layout_height="55dp"
+        android:layout_marginStart="144dp"
+        android:text="New Game"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:ignore="MissingConstraints" />
 
     <Button
         android:id="@+id/nextRound"
@@ -59,33 +59,28 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <Button
-            android:id="@+id/addTeam"
-            android:layout_width="117dp"
-            android:layout_height="55dp"
-            android:layout_marginStart="75dp"
-            android:layout_marginTop="50dp"
-            android:text="Add Team"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+        android:id="@+id/addTeam"
+        android:layout_width="117dp"
+        android:layout_height="55dp"
+        android:layout_marginStart="144dp"
+        android:layout_marginTop="52dp"
+        android:text="Add Team"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
-        <Button
-            android:id="@+id/addPoints"
-            android:layout_width="117dp"
-            android:layout_height="55dp"
-            android:layout_marginEnd="76dp"
-            android:text="+ Points"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        <Button
-            android:id="@+id/subtractPoints"
-            android:layout_width="117dp"
-            android:layout_height="55dp"
-            android:layout_marginTop="52dp"
-            android:layout_marginEnd="76dp"
-            android:text="- Points"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@+id/addPoints" />
+    <TextView
+        android:id="@+id/roundNumber"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="168dp"
+        android:background="#F5F5F5"
+        android:text="Round: 1"
+        android:textColor="@android:color/black"
+        android:textSize="18sp"
+        app:layout_constraintBottom_toTopOf="@+id/teamsScrollView"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/nextRound"
+        app:layout_constraintVertical_bias="0.411" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>
