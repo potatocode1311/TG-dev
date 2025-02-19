@@ -13,6 +13,7 @@ import android.text.InputType
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
@@ -33,7 +34,7 @@ import kotlinx.parcelize.Parcelize
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding : ActivityMainBinding
-    private var roundNumber = 1
+    private var roundNumber: Int = 1
     private val teams = mutableListOf<Team>()
     //data class for team that initializes it as a string and defaults score to 0
     @Parcelize
@@ -83,8 +84,13 @@ class MainActivity : AppCompatActivity() {
             val isInputVisible = savedInstanceState.getBoolean("isInputVisible", false)
             binding.teamsContainer.visibility = if (isInputVisible) View.VISIBLE else View.GONE
 
+            //restore current round
+            roundNumber = savedInstanceState.getInt("roundNumber", 1)
+
             //update display
             displayTeams()
+            //update round number
+            updateRoundDisplay()
         }
         //initialize the round number display
         binding.roundNumber.text = "Round: $roundNumber"
@@ -115,17 +121,37 @@ class MainActivity : AppCompatActivity() {
         super.onSaveInstanceState(outState)
         outState.putParcelableArrayList("teams", ArrayList(teams))
         outState.putBoolean("isInputVisible", binding.teamsContainer.visibility == View.VISIBLE)
+
+        //save the current round
+        outState.putInt("roundNumber", roundNumber)
     }
 
+    private fun updateRoundDisplay() {
+        //update round number to current view on save state
+        binding.roundNumber.text = "Round $roundNumber"
 
+    }
     private fun showTeamNameInputDialog() {
+
         val builder = AlertDialog.Builder(this)
         builder.setTitle("Enter Team Name")
 
         //set up the input field
         val input = EditText(this)
-        input.inputType = InputType.TYPE_CLASS_TEXT
+        input.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
+        input.imeOptions = EditorInfo.IME_ACTION_DONE
         input.hint = "Team Name"
+
+        //set up IME action listener
+        input.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                //hide keyboard
+                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.hideSoftInputFromWindow(input.windowToken, 0)
+                return@setOnEditorActionListener true
+            }
+            false
+        }
 
         //add some padding around the EditText
         val container = FrameLayout(this)
@@ -141,9 +167,13 @@ class MainActivity : AppCompatActivity() {
         builder.setView(container)
 
         //set up the buttons
-        builder.setPositiveButton("OK") { _, _ ->
+        builder.setPositiveButton("OK") { dialog, _ ->
             val teamName = input.text.toString()
             if (teamName.isNotBlank()) {
+                //hide keyboard first
+                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.hideSoftInputFromWindow(input.windowToken, 0)
+
                 addTeam(teamName)
                 Toast.makeText(this, "Team '$teamName' added!", Toast.LENGTH_SHORT).show()
             } else {
@@ -152,21 +182,34 @@ class MainActivity : AppCompatActivity() {
         }
 
         builder.setNegativeButton("Cancel") { dialog, _ ->
+            //hide keyboard when canceled
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(input.windowToken, 0)
             dialog.cancel()
         }
 
         val dialog = builder.create()
 
+        //set dialog dismissal listener to ensure keyboard is hidden
+        dialog.setOnDismissListener {
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(input.windowToken, 0)
+        }
+
+        //force dialog to use a specific configuration
+        dialog.window?.apply {
+            clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM)
+            setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE or WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
+        }
 
         dialog.show()
-        //request focus *after* the dialog is shown and show keyboard
-        dialog.setOnShowListener {
+
+        //show keyboard with a slight delay
+        input.post {
             input.requestFocus()
             val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            imm.showSoftInput(input, 0)
+            imm.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0)
         }
-        dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE)
-
     }
     private fun showConfirmationDialog(actionName: String) {
         val builder = AlertDialog.Builder(this)
@@ -190,6 +233,7 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Action confirmed!", Toast.LENGTH_SHORT).show()
             when (actionName) {
                 "Add Team" -> {
+
                     //create team name dialog box to enter a team name and display it
                     showTeamNameInputDialog()
                 }
