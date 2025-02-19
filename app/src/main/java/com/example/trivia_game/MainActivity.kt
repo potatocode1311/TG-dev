@@ -1,13 +1,19 @@
 package com.example.trivia_game
 
 import android.app.AlertDialog
+import android.content.Context
 import android.content.DialogInterface
 import android.graphics.Color
 import android.graphics.Typeface
+import android.os.Build
 import android.os.Bundle
+import android.os.Parcel
+import android.os.Parcelable
 import android.text.InputType
+import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
@@ -15,17 +21,47 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.trivia_game.databinding.ActivityMainBinding
+import kotlinx.parcelize.Parceler
+import kotlinx.parcelize.Parcelize
 
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding : ActivityMainBinding
     private var roundNumber = 1
+    private val teams = mutableListOf<Team>()
+    //data class for team that initializes it as a string and defaults score to 0
+    @Parcelize
+    data class Team(
+        val name: String,
+        var score: Int = 0
+    ) : Parcelable {
+        //constructors and functions to save team name and score
+        constructor(parcel: Parcel) : this(
+            parcel.readString() ?: "",
+            parcel.readInt()
+        )
 
+        companion object : Parceler<Team> {
+
+            override fun Team.write(parcel: Parcel, flags: Int) {
+                parcel.writeString(name)
+                parcel.writeInt(score)
+            }
+
+            override fun create(parcel: Parcel): Team {
+                return Team(parcel)
+            }
+        }
+
+    }
+
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         //main activity initialization
@@ -33,7 +69,24 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Initialize the round number display
+
+        //initialize teams list if not already initialized
+        if (savedInstanceState != null) {
+            //restore teams
+            val savedTeams = savedInstanceState.getParcelableArrayList<Team>("teams")
+            teams.clear()
+            if (savedTeams != null) {
+                teams.addAll(savedTeams)
+            }
+
+            //restore input visibility
+            val isInputVisible = savedInstanceState.getBoolean("isInputVisible", false)
+            binding.teamsContainer.visibility = if (isInputVisible) View.VISIBLE else View.GONE
+
+            //update display
+            displayTeams()
+        }
+        //initialize the round number display
         binding.roundNumber.text = "Round: $roundNumber"
         enableEdgeToEdge()
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
@@ -56,21 +109,25 @@ class MainActivity : AppCompatActivity() {
         button3.setOnClickListener {
             showConfirmationDialog("Next Round")
         }
-
-
-
     }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putParcelableArrayList("teams", ArrayList(teams))
+        outState.putBoolean("isInputVisible", binding.teamsContainer.visibility == View.VISIBLE)
+    }
+
 
     private fun showTeamNameInputDialog() {
         val builder = AlertDialog.Builder(this)
         builder.setTitle("Enter Team Name")
 
-        // Set up the input field
+        //set up the input field
         val input = EditText(this)
         input.inputType = InputType.TYPE_CLASS_TEXT
         input.hint = "Team Name"
 
-        // Add some padding around the EditText
+        //add some padding around the EditText
         val container = FrameLayout(this)
         val params = FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
@@ -83,7 +140,7 @@ class MainActivity : AppCompatActivity() {
 
         builder.setView(container)
 
-        // Set up the buttons
+        //set up the buttons
         builder.setPositiveButton("OK") { _, _ ->
             val teamName = input.text.toString()
             if (teamName.isNotBlank()) {
@@ -102,9 +159,14 @@ class MainActivity : AppCompatActivity() {
 
 
         dialog.show()
-        // Show keyboard automatically when dialog appears
-        input.requestFocus()
+        //request focus *after* the dialog is shown and show keyboard
+        dialog.setOnShowListener {
+            input.requestFocus()
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(input, 0)
+        }
         dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE)
+
     }
     private fun showConfirmationDialog(actionName: String) {
         val builder = AlertDialog.Builder(this)
@@ -124,7 +186,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         builder.setPositiveButton("Yes") { dialog: DialogInterface, id: Int ->
-            // User clicked Yes button
+            //user clicked Yes button
             Toast.makeText(this, "Action confirmed!", Toast.LENGTH_SHORT).show()
             when (actionName) {
                 "Add Team" -> {
@@ -151,8 +213,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-                //"Action 2" -> { /* Code for action 2 */ }
-                //"Action 3" -> { /* Code for action 3 */ }
 
         builder.setNegativeButton("No") { dialog: DialogInterface, id: Int ->
             //user cancelled the dialog
@@ -162,12 +222,7 @@ class MainActivity : AppCompatActivity() {
         val dialog = builder.create()
         dialog.show()
     }
-    //data class for team that initializes it as a string and defaults score to 0
-    data class Team(
-        val name: String,
-        var score: Int = 0
-    )
-    private val teams = mutableListOf<Team>()
+
     //add teams function that adds teams and updates ui
     private fun addTeam(name: String) {
         val newTeam = Team(name)
@@ -179,7 +234,7 @@ class MainActivity : AppCompatActivity() {
     private fun displayTeams() {
         binding.teamsContainer.removeAllViews()
 
-        // Layout for teams to be displayed
+        //layout for teams to be displayed
         teams.forEachIndexed { index, team ->
             val teamLayout = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
@@ -191,11 +246,11 @@ class MainActivity : AppCompatActivity() {
                 }
                 setPadding(16, 16, 16, 16)
 
-                // Sets unscored teams to a gray color
+                //sets background color for teams
                 setBackgroundResource(R.drawable.team_card_background_unscored)
             }
 
-            // Team name and score in a vertical layout (left side)
+            //team name and score in a vertical layout (left side)
             val infoLayout = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 layoutParams = LinearLayout.LayoutParams(
@@ -205,7 +260,7 @@ class MainActivity : AppCompatActivity() {
                 )
             }
 
-            // Team name styling
+            //team name styling
             val nameView = TextView(this).apply {
                 text = team.name
                 textSize = 18f
@@ -214,7 +269,7 @@ class MainActivity : AppCompatActivity() {
             }
             infoLayout.addView(nameView)
 
-            // Score styling
+            //score styling
             val scoreView = TextView(this).apply {
                 text = "Score: ${team.score}"
                 textSize = 16f
