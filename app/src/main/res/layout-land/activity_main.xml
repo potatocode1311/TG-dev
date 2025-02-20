@@ -5,28 +5,72 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@drawable/background_with_logo"
     android:fitsSystemWindows="true"
     tools:context=".MainActivity">
 
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideline"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.83" />
+
+    <Switch
+        android:id="@+id/switch1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:layout_marginStart="28dp"
+        android:minWidth="40dp"
+        android:minHeight="28dp"
+        android:scaleX="1.5"
+        android:scaleY="1.5"
+        android:textSize="16sp"
+        android:background="@drawable/rounded_background"
+        app:layout_constraintStart_toStartOf="@id/guideline"
+        app:layout_constraintTop_toBottomOf="@+id/nextQuestion"
+        tools:ignore="UseSwitchCompatOrMaterialXml" />
+
+    <TextView
+        android:id="@+id/unlockScoresTextView2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:layout_marginEnd="3dp"
+        android:background="@drawable/rounded_background"
+        android:text="Unlock Scores"
+        android:textAlignment="center"
+        android:textSize="18sp"
+        android:textColor="@android:color/black"
+        app:layout_constraintEnd_toStartOf="@+id/switch1"
+        app:layout_constraintHorizontal_bias="0.969"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/nextQuestion" />
+
     <ScrollView
         android:id="@+id/teamsScrollView"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="16dp"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="16dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/roundNumber">
+        app:layout_constraintTop_toBottomOf="@+id/questionNumber"
+        app:layout_constraintVertical_bias="1.0">
 
         <LinearLayout
             android:id="@+id/teamsContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp" />
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="8dp">
+
+        </LinearLayout>
     </ScrollView>
 
     <Button
@@ -47,12 +91,12 @@
         android:layout_marginStart="8dp"
         android:layout_marginTop="16dp"
         android:text="Add Team"
-        app:layout_constraintEnd_toStartOf="@+id/nextRound"
+        app:layout_constraintEnd_toStartOf="@+id/nextQuestion"
         app:layout_constraintStart_toEndOf="@+id/newGame"
         app:layout_constraintTop_toTopOf="parent" />
 
     <Button
-        android:id="@+id/nextRound"
+        android:id="@+id/nextQuestion"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
@@ -64,13 +108,14 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
-        android:id="@+id/roundNumber"
+        android:id="@+id/questionNumber"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:text="Round: 1"
-        android:background="#F5F5F5"
+        android:background="@drawable/rounded_background"
+        android:fontFamily="sans-serif"
         android:padding="8dp"
+        android:text="Question: 1"
         android:textColor="@android:color/black"
         android:textSize="18sp"
         app:layout_constraintEnd_toEndOf="parent"

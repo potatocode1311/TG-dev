@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.os.Parcel
 import android.os.Parcelable
 import android.text.InputType
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -32,10 +33,13 @@ import kotlinx.parcelize.Parceler
 import kotlinx.parcelize.Parcelize
 
 
+
 class MainActivity : AppCompatActivity() {
-    private lateinit var binding : ActivityMainBinding
-    private var roundNumber: Int = 1
+    private var questionNumber: Int = 1
     private val teams = mutableListOf<Team>()
+    private var _binding: ActivityMainBinding? = null
+    private val binding get() = _binding!!
+    private var scoresLocked = false
     //data class for team that initializes it as a string and defaults score to 0
     @Parcelize
     data class Team(
@@ -67,9 +71,12 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         //main activity initialization
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        binding = ActivityMainBinding.inflate(layoutInflater)
+        _binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        initializeSwitch()
+        setupSwitch()
+        setupNextQuestionButton()
 
         //initialize teams list if not already initialized
         if (savedInstanceState != null) {
@@ -85,15 +92,15 @@ class MainActivity : AppCompatActivity() {
             binding.teamsContainer.visibility = if (isInputVisible) View.VISIBLE else View.GONE
 
             //restore current round
-            roundNumber = savedInstanceState.getInt("roundNumber", 1)
+            questionNumber = savedInstanceState.getInt("questionNumber", 1)
 
             //update display
             displayTeams()
             //update round number
-            updateRoundDisplay()
+            updateQuestionDisplay()
         }
         //initialize the round number display
-        binding.roundNumber.text = "Round: $roundNumber"
+        binding.questionNumber.text = "Question: $questionNumber"
         enableEdgeToEdge()
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -103,7 +110,7 @@ class MainActivity : AppCompatActivity() {
         //button initialization
         val button1 = findViewById<Button>(R.id.newGame)
         val button2 = findViewById<Button>(R.id.addTeam)
-        val button3 = findViewById<Button>(R.id.nextRound)
+        val button3 = findViewById<Button>(R.id.nextQuestion)
 
         //show confirmation dialog boxes when buttons are pushed
         button1.setOnClickListener {
@@ -113,23 +120,62 @@ class MainActivity : AppCompatActivity() {
             showConfirmationDialog("Add Team")
         }
         button3.setOnClickListener {
-            showConfirmationDialog("Next Round")
+            showConfirmationDialog("Next Question")
         }
     }
 
+    private fun initializeSwitch() {
+        try {
+            binding.switch1?.apply {
+                //set default state
+                isChecked = false
+
+                setOnCheckedChangeListener { _, isChecked ->
+                    scoresLocked = isChecked
+                    //update UI based on locked state
+                    displayTeams()
+                }
+            }
+        } catch (e: Exception) {
+            //fallback to default unlocked state
+            scoresLocked = false
+        }
+    }
+
+    //function for switch so it knows what state it is in
+    private fun setupSwitch() {
+        binding.scoreSwitch?.let { switch ->
+            switch.setOnCheckedChangeListener { _, isChecked ->
+                scoresLocked = isChecked
+                displayTeams()
+            }
+        }
+    }
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putParcelableArrayList("teams", ArrayList(teams))
         outState.putBoolean("isInputVisible", binding.teamsContainer.visibility == View.VISIBLE)
 
-        //save the current round
-        outState.putInt("roundNumber", roundNumber)
+        //save the current question
+        outState.putInt("questionNumber", questionNumber)
     }
 
-    private fun updateRoundDisplay() {
-        //update round number to current view on save state
-        binding.roundNumber.text = "Round $roundNumber"
+    private fun updateQuestionDisplay() {
+        //update question number to current view on save state
+        binding.questionNumber.text = "Question $questionNumber"
 
+    }
+
+    private fun setupNextQuestionButton() {
+        binding.nextQuestion.setOnClickListener {
+            //activate switch
+            binding.switch1?.let { switch ->
+                switch.isChecked = true
+                scoresLocked = true
+            }
+            //sort and update display
+            displayTeams()
+        }
     }
     private fun showTeamNameInputDialog() {
 
@@ -223,8 +269,8 @@ class MainActivity : AppCompatActivity() {
                 builder.setMessage("Are you sure you want to make a new team?")
             }
 
-            "Next Round" -> {
-                builder.setMessage("Are you sure you want to proceed to the next round?")
+            "Next Question" -> {
+                builder.setMessage("Are you sure you want to proceed to the next question?")
             }
         }
 
@@ -233,26 +279,30 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Action confirmed!", Toast.LENGTH_SHORT).show()
             when (actionName) {
                 "Add Team" -> {
-
                     //create team name dialog box to enter a team name and display it
                     showTeamNameInputDialog()
                 }
 
-                "Next Round" -> {
-                    //increment round number
-                    roundNumber++
-                    //update round container with new round number
-                    binding.roundNumber.text = "Round: $roundNumber"
-
+                "Next Question" -> {
+                    //increment question number
+                    questionNumber++
+                    //update question container with new question number
+                    binding.questionNumber.text = "Question: $questionNumber"
+                    // Update switch and lock state
+                    binding.scoreSwitch?.apply {
+                        isChecked = true
+                        scoresLocked = true
+                    }
+                    displayTeams()
                 }
                 "New Game" -> {
 
                     //clear the teamsContainer
                     binding.teamsContainer.removeAllViews()
-                    //reset round number
-                    roundNumber = 1
+                    //reset question number
+                    questionNumber = 1
                     teams.clear()
-                    binding.roundNumber.text = "Round: $roundNumber"
+                    binding.questionNumber.text = "Question: $questionNumber"
 
                 }
             }
@@ -276,8 +326,8 @@ class MainActivity : AppCompatActivity() {
 
     //function to display teams in the scrollview
     private fun displayTeams() {
+        teams.sortByDescending { it.score }
         binding.teamsContainer.removeAllViews()
-
         //layout for teams to be displayed
         teams.forEachIndexed { index, team ->
             val teamLayout = LinearLayout(this).apply {
@@ -291,7 +341,7 @@ class MainActivity : AppCompatActivity() {
                 setPadding(16, 16, 16, 16)
 
                 //sets background color for teams
-                setBackgroundResource(R.drawable.team_card_background_unscored)
+                setBackgroundResource(R.drawable.team_card_background)
             }
 
             //team name and score in a vertical layout (left side)
@@ -332,6 +382,7 @@ class MainActivity : AppCompatActivity() {
                 )
             }
 
+
             //add points button using buttonContainer and functionality to add points
             val addButton = Button(this).apply {
                 text = "+"
@@ -344,7 +395,6 @@ class MainActivity : AppCompatActivity() {
                 //when + button is pushed, update team score
                 setOnClickListener {
                     updateTeamScore(index, 1)
-                    //TODO:change background color and update view when button is pushed
                 }
             }
             buttonContainer.addView(addButton)
@@ -360,6 +410,20 @@ class MainActivity : AppCompatActivity() {
                     updateTeamScore(index, -1)
                 }
             }
+            //modify the button states based on locked status
+            addButton.isEnabled = !scoresLocked
+            subtractButton.isEnabled = !scoresLocked
+
+            subtractButton.apply {
+                isEnabled = !scoresLocked
+                alpha = if (scoresLocked) 0.5f else 1.0f
+            }
+
+            // Modify button states
+            addButton.apply {
+                isEnabled = !scoresLocked
+                alpha = if (scoresLocked) 0.5f else 1.0f
+            }
             buttonContainer.addView(subtractButton)
 
             teamLayout.addView(buttonContainer)
@@ -374,6 +438,7 @@ class MainActivity : AppCompatActivity() {
 
     //function to update score when +/- buttons are used
     private fun updateTeamScore(teamIndex: Int, points: Int) {
+        if (scoresLocked) return
         if (teamIndex in teams.indices) {
             teams[teamIndex].score += points
             displayTeams()
