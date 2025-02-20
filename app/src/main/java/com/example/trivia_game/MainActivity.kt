@@ -288,6 +288,8 @@ class MainActivity : AppCompatActivity() {
                     questionNumber++
                     //update question container with new question number
                     binding.questionNumber.text = "Question: $questionNumber"
+                    //sort teams by highest to lowest score
+                    teams.sortByDescending { it.score }
                     // Update switch and lock state
                     binding.scoreSwitch?.apply {
                         isChecked = true
@@ -326,7 +328,6 @@ class MainActivity : AppCompatActivity() {
 
     //function to display teams in the scrollview
     private fun displayTeams() {
-        teams.sortByDescending { it.score }
         binding.teamsContainer.removeAllViews()
         //layout for teams to be displayed
         teams.forEachIndexed { index, team ->
