@@ -1,5 +1,6 @@
 package com.example.trivia_game
 
+import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.Context
 import android.content.DialogInterface
@@ -20,6 +21,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -40,11 +42,14 @@ class MainActivity : AppCompatActivity() {
     private var _binding: ActivityMainBinding? = null
     private val binding get() = _binding!!
     private var scoresLocked = false
-    //data class for team that initializes it as a string and defaults score to 0
+    //data class for team that initializes it as a string and defaults score/question score to 0
+    //and initializes the switch for each team
     @Parcelize
     data class Team(
         val name: String,
-        var score: Int = 0
+        var score: Int = 0,
+        var questionScore: Int = 0,
+        var isLocked: Boolean = false
     ) : Parcelable {
         //constructors and functions to save team name and score
         constructor(parcel: Parcel) : this(
@@ -65,7 +70,11 @@ class MainActivity : AppCompatActivity() {
         }
 
     }
-
+    private fun resetTeamSwitches() {
+        teams.forEach { team ->
+            team.isLocked = false
+        }
+    }
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,9 +83,6 @@ class MainActivity : AppCompatActivity() {
         _binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        initializeSwitch()
-        setupSwitch()
-        setupNextQuestionButton()
 
         //initialize teams list if not already initialized
         if (savedInstanceState != null) {
@@ -124,33 +130,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun initializeSwitch() {
-        try {
-            binding.switch1?.apply {
-                //set default state
-                isChecked = false
 
-                setOnCheckedChangeListener { _, isChecked ->
-                    scoresLocked = isChecked
-                    //update UI based on locked state
-                    displayTeams()
-                }
-            }
-        } catch (e: Exception) {
-            //fallback to default unlocked state
-            scoresLocked = false
-        }
-    }
-
-    //function for switch so it knows what state it is in
-    private fun setupSwitch() {
-        binding.scoreSwitch?.let { switch ->
-            switch.setOnCheckedChangeListener { _, isChecked ->
-                scoresLocked = isChecked
-                displayTeams()
-            }
-        }
-    }
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putParcelableArrayList("teams", ArrayList(teams))
@@ -166,17 +146,6 @@ class MainActivity : AppCompatActivity() {
 
     }
 
-    private fun setupNextQuestionButton() {
-        binding.nextQuestion.setOnClickListener {
-            //activate switch
-            binding.switch1?.let { switch ->
-                switch.isChecked = true
-                scoresLocked = true
-            }
-            //sort and update display
-            displayTeams()
-        }
-    }
     private fun showTeamNameInputDialog() {
 
         val builder = AlertDialog.Builder(this)
@@ -286,15 +255,20 @@ class MainActivity : AppCompatActivity() {
                 "Next Question" -> {
                     //increment question number
                     questionNumber++
+
                     //update question container with new question number
                     binding.questionNumber.text = "Question: $questionNumber"
+
+                    //update total scores and reset question scores
+                    finalizeQuestionScores()
+
+                    //reset switches for next question
+                    resetTeamSwitches()
+
                     //sort teams by highest to lowest score
                     teams.sortByDescending { it.score }
+
                     // Update switch and lock state
-                    binding.scoreSwitch?.apply {
-                        isChecked = true
-                        scoresLocked = true
-                    }
                     displayTeams()
                 }
                 "New Game" -> {
@@ -325,8 +299,16 @@ class MainActivity : AppCompatActivity() {
         teams.add(newTeam)
         displayTeams()
     }
+    //function that adds score and total questions this score for new total
+    private fun finalizeQuestionScores() {
+        teams.forEach { team ->
+            team.score += team.questionScore
+            team.questionScore = 0  // Reset for next question
+        }
+    }
 
     //function to display teams in the scrollview
+    @SuppressLint("UseSwitchCompatOrMaterialCode")
     private fun displayTeams() {
         binding.teamsContainer.removeAllViews()
         //layout for teams to be displayed
@@ -343,7 +325,10 @@ class MainActivity : AppCompatActivity() {
 
                 //sets background color for teams
                 setBackgroundResource(R.drawable.team_card_background)
+
             }
+
+
 
             //team name and score in a vertical layout (left side)
             val infoLayout = LinearLayout(this).apply {
@@ -366,7 +351,7 @@ class MainActivity : AppCompatActivity() {
 
             //score styling
             val scoreView = TextView(this).apply {
-                text = "Score: ${team.score}"
+                text = "Total Score: ${team.score}\nThis Question: ${team.questionScore}"
                 textSize = 16f
                 setTextColor(Color.DKGRAY)
             }
@@ -398,7 +383,7 @@ class MainActivity : AppCompatActivity() {
                     updateTeamScore(index, 1)
                 }
             }
-            buttonContainer.addView(addButton)
+
 
             //subtract points button using buttonContainer and functionality to subtract points
             val subtractButton = Button(this).apply {
@@ -411,21 +396,41 @@ class MainActivity : AppCompatActivity() {
                     updateTeamScore(index, -1)
                 }
             }
-            //modify the button states based on locked status
-            addButton.isEnabled = !scoresLocked
-            subtractButton.isEnabled = !scoresLocked
+
+            // Add switch for each team
+            val teamSwitch = Switch(this).apply {
+                isChecked = team.isLocked
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    marginEnd = dpToPx(8)
+                }
+                setOnCheckedChangeListener { _, isChecked ->
+                    team.isLocked = isChecked
+                    addButton.isEnabled = !isChecked
+                    subtractButton.isEnabled = !isChecked
+                    addButton.alpha = if (isChecked) 0.5f else 1.0f
+                    subtractButton.alpha = if (isChecked) 0.5f else 1.0f
+                }
+            }
+
 
             subtractButton.apply {
-                isEnabled = !scoresLocked
-                alpha = if (scoresLocked) 0.5f else 1.0f
+                isEnabled = !team.isLocked
+                alpha = if (team.isLocked) 0.5f else 1.0f
             }
 
-            // Modify button states
+            //modify button states
             addButton.apply {
-                isEnabled = !scoresLocked
-                alpha = if (scoresLocked) 0.5f else 1.0f
+                isEnabled = !team.isLocked
+                alpha = if (team.isLocked) 0.5f else 1.0f
             }
+
+            //place switch, +/- from left to right
+            buttonContainer.addView(teamSwitch)
             buttonContainer.addView(subtractButton)
+            buttonContainer.addView(addButton)
 
             teamLayout.addView(buttonContainer)
             binding.teamsContainer.addView(teamLayout)
@@ -441,7 +446,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateTeamScore(teamIndex: Int, points: Int) {
         if (scoresLocked) return
         if (teamIndex in teams.indices) {
-            teams[teamIndex].score += points
+            teams[teamIndex].questionScore += points
             displayTeams()
             Toast.makeText(
                 this,

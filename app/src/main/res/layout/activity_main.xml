@@ -15,15 +15,15 @@
         android:id="@+id/teamsScrollView"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="16dp"
         android:layout_marginStart="8dp"
+        android:layout_marginTop="52dp"
         android:layout_marginEnd="8dp"
         android:layout_marginBottom="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.272"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/unlockScoresTextView"
+        app:layout_constraintTop_toBottomOf="@+id/nextQuestion"
         app:layout_constraintVertical_bias="0.974">
 
         <LinearLayout
@@ -32,8 +32,7 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingHorizontal="8dp"
-            android:paddingVertical="8dp">
-        </LinearLayout>
+            android:paddingVertical="8dp"></LinearLayout>
     </ScrollView>
 
     <Button
@@ -92,37 +91,5 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         app:layout_constraintGuide_percent="0.3" />
-
-    <Switch
-        android:id="@+id/scoreSwitch"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="28dp"
-        android:layout_marginTop="12dp"
-        android:background="@drawable/rounded_background"
-        android:minWidth="40dp"
-        android:minHeight="28dp"
-        android:scaleX="1.5"
-        android:scaleY="1.5"
-        android:textSize="16sp"
-        app:layout_constraintStart_toStartOf="@id/guideline"
-        app:layout_constraintTop_toBottomOf="@+id/nextQuestion"
-        tools:ignore="UseSwitchCompatOrMaterialXml" />
-
-    <TextView
-        android:id="@+id/unlockScoresTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:layout_marginEnd="3dp"
-        android:background="@drawable/rounded_background"
-        android:fontFamily="sans-serif"
-        android:text="Unlock Scores"
-        android:textColor="@android:color/black"
-        android:textAlignment="center"
-        android:textSize="18sp"
-        app:layout_constraintEnd_toStartOf="@+id/scoreSwitch"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/nextQuestion" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
