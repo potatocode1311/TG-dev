@@ -391,8 +391,10 @@ class MainActivity : AppCompatActivity() {
                 layoutParams = LinearLayout.LayoutParams(
                     dpToPx(40),  // Width in dp
                     dpToPx(40)   // Height in dp
-                )
-                setOnClickListener {
+                ).apply {
+                    marginEnd = dpToPx(8)
+                }
+                    setOnClickListener {
                     updateTeamScore(index, -1)
                 }
             }
