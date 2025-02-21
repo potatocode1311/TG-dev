@@ -268,7 +268,7 @@ class MainActivity : AppCompatActivity() {
                     //sort teams by highest to lowest score
                     teams.sortByDescending { it.score }
 
-                    // Update switch and lock state
+                    //update switch and lock state
                     displayTeams()
                 }
                 "New Game" -> {
@@ -303,7 +303,8 @@ class MainActivity : AppCompatActivity() {
     private fun finalizeQuestionScores() {
         teams.forEach { team ->
             team.score += team.questionScore
-            team.questionScore = 0  // Reset for next question
+            //reset score for next question
+            team.questionScore = 0
         }
     }
 
@@ -397,7 +398,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            // Add switch for each team
+            //add switch for each team
             val teamSwitch = Switch(this).apply {
                 isChecked = team.isLocked
                 layoutParams = LinearLayout.LayoutParams(
