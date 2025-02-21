@@ -328,8 +328,6 @@ class MainActivity : AppCompatActivity() {
 
             }
 
-
-
             //team name and score in a vertical layout (left side)
             val infoLayout = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
@@ -415,18 +413,6 @@ class MainActivity : AppCompatActivity() {
                     addButton.alpha = if (isChecked) 0.5f else 1.0f
                     subtractButton.alpha = if (isChecked) 0.5f else 1.0f
                 }
-            }
-
-
-            subtractButton.apply {
-                isEnabled = !team.isLocked
-                alpha = if (team.isLocked) 0.5f else 1.0f
-            }
-
-            //modify button states
-            addButton.apply {
-                isEnabled = !team.isLocked
-                alpha = if (team.isLocked) 0.5f else 1.0f
             }
 
             //place switch, +/- from left to right
