@@ -32,7 +32,9 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingHorizontal="8dp"
-            android:paddingVertical="8dp"></LinearLayout>
+            android:paddingVertical="8dp">
+
+        </LinearLayout>
     </ScrollView>
 
     <Button
@@ -46,6 +48,8 @@
         app:layout_constraintEnd_toStartOf="@+id/questionNumber"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+
+
 
     <Button
         android:id="@+id/nextQuestion"
@@ -84,12 +88,5 @@
         android:textSize="18sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
-
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/guideline"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        app:layout_constraintGuide_percent="0.3" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

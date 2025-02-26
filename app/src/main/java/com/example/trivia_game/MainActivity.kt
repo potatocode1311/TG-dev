@@ -49,7 +49,8 @@ class MainActivity : AppCompatActivity() {
         val name: String,
         var score: Int = 0,
         var questionScore: Int = 0,
-        var isLocked: Boolean = false
+        var isLocked: Boolean = false,
+        var buttonStates: ButtonStates = ButtonStates()
     ) : Parcelable {
         //constructors and functions to save team name and score
         constructor(parcel: Parcel) : this(
@@ -70,6 +71,13 @@ class MainActivity : AppCompatActivity() {
         }
 
     }
+
+    //button states class to track button states
+    data class ButtonStates(
+        var addEnabled: Boolean = true,
+        var subtractEnabled: Boolean = true
+    )
+
     private fun resetTeamSwitches() {
         teams.forEach { team ->
             team.isLocked = false
@@ -188,8 +196,25 @@ class MainActivity : AppCompatActivity() {
                 //hide keyboard first
                 val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
                 imm.hideSoftInputFromWindow(input.windowToken, 0)
+                //get current button states for other teams that might be added
+                val currentStates = teams.map { team ->
+                    Triple(
+                        team.isLocked,
+                        team.buttonStates.addEnabled,
+                        team.buttonStates.subtractEnabled
+                    )
+                }
 
                 addTeam(teamName)
+
+                //restore states of other teams buttons
+                teams.take(currentStates.size).forEachIndexed { index, team ->
+                    val (isLocked, addEnabled, subtractEnabled) = currentStates[index]
+                    team.isLocked = isLocked
+                    team.buttonStates.addEnabled = addEnabled
+                    team.buttonStates.subtractEnabled = subtractEnabled
+                }
+                displayTeams()
                 Toast.makeText(this, "Team '$teamName' added!", Toast.LENGTH_SHORT).show()
             } else {
                 Toast.makeText(this, "Team name cannot be empty!", Toast.LENGTH_SHORT).show()
@@ -371,6 +396,8 @@ class MainActivity : AppCompatActivity() {
             //add points button using buttonContainer and functionality to add points
             val addButton = Button(this).apply {
                 text = "+"
+                isEnabled = team.buttonStates.addEnabled && !team.isLocked
+                alpha = if (isEnabled) 1.0f else 0.5f
                 layoutParams = LinearLayout.LayoutParams(
                     dpToPx(40),
                     dpToPx(40)
@@ -387,6 +414,8 @@ class MainActivity : AppCompatActivity() {
             //subtract points button using buttonContainer and functionality to subtract points
             val subtractButton = Button(this).apply {
                 text = "-"
+                isEnabled = team.buttonStates.subtractEnabled && !team.isLocked
+                alpha = if (isEnabled) 1.0f else 0.5f
                 layoutParams = LinearLayout.LayoutParams(
                     dpToPx(40),  // Width in dp
                     dpToPx(40)   // Height in dp
