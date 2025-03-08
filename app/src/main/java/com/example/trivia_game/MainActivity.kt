@@ -12,6 +12,7 @@ import android.os.Parcel
 import android.os.Parcelable
 import android.text.InputType
 import android.util.Log
+import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -21,6 +22,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.PopupMenu
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
@@ -30,6 +32,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.children
 import com.example.trivia_game.databinding.ActivityMainBinding
 import kotlinx.parcelize.Parceler
 import kotlinx.parcelize.Parcelize
@@ -46,9 +49,10 @@ class MainActivity : AppCompatActivity() {
     //and initializes the switch for each team
     @Parcelize
     data class Team(
-        val name: String,
+        var name: String,
         var score: Int = 0,
         var questionScore: Int = 0,
+        var currentRank: Int = 0,
         var isLocked: Boolean = false,
         var buttonStates: ButtonStates = ButtonStates()
     ) : Parcelable {
@@ -71,7 +75,11 @@ class MainActivity : AppCompatActivity() {
         }
 
     }
-
+    private data class RankedTeam(
+        val team: Team,
+        val originalIndex: Int,
+        var rank: Int = 0
+    )
     //button states class to track button states
     data class ButtonStates(
         var addEnabled: Boolean = true,
@@ -153,6 +161,29 @@ class MainActivity : AppCompatActivity() {
         binding.questionNumber.text = "Question $questionNumber"
 
     }
+    //rank teams based on score
+    private fun calculateAndApplyRankings() {
+        val rankedTeams = teams.mapIndexed { index, team ->
+            RankedTeam(team, index)
+        }.groupBy {
+            it.team.score
+        }.entries.sortedByDescending {
+            it.key
+        }.flatMapIndexed { groupIndex, group ->
+            val rank = groupIndex + 1
+            group.value.map { rankedTeam ->
+                rankedTeam.apply { this.rank = rank }
+            }
+        }
+
+        //store ranks in sorted order (highest rank at top)
+        rankedTeams.forEach { rankedTeam ->
+            teams[rankedTeam.originalIndex].currentRank = rankedTeam.rank
+        }
+
+        //sort teams array by rank (lowest number at top)
+        teams.sortBy { it.currentRank }
+    }
 
     private fun showTeamNameInputDialog() {
 
@@ -214,6 +245,7 @@ class MainActivity : AppCompatActivity() {
                     team.buttonStates.addEnabled = addEnabled
                     team.buttonStates.subtractEnabled = subtractEnabled
                 }
+                calculateAndApplyRankings()
                 displayTeams()
                 Toast.makeText(this, "Team '$teamName' added!", Toast.LENGTH_SHORT).show()
             } else {
@@ -290,10 +322,10 @@ class MainActivity : AppCompatActivity() {
                     //reset switches for next question
                     resetTeamSwitches()
 
-                    //sort teams by highest to lowest score
-                    teams.sortByDescending { it.score }
+                    //calculate rankings
+                    calculateAndApplyRankings()
 
-                    //update switch and lock state
+                    //update teams with new info
                     displayTeams()
                 }
                 "New Game" -> {
@@ -323,6 +355,7 @@ class MainActivity : AppCompatActivity() {
         val newTeam = Team(name)
         teams.add(newTeam)
         displayTeams()
+        updateTeamCount()
     }
     //function that adds score and total questions this score for new total
     private fun finalizeQuestionScores() {
@@ -332,11 +365,63 @@ class MainActivity : AppCompatActivity() {
             team.questionScore = 0
         }
     }
+    private fun showTeamOptionsMenu(view: View, team: Team, teamIndex: Int) {
+        val popup = PopupMenu(this, view)
+        popup.menuInflater.inflate(R.menu.team_options_menu, popup.menu)
 
+        popup.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.edit_team_name -> {
+                    showEditTeamNameDialog(team, teamIndex)
+                    true
+                }
+                R.id.delete_team -> {
+                    showDeleteTeamConfirmation(teamIndex)
+                    true
+                }
+                else -> false
+            }
+        }
+        popup.show()
+    }
+    private fun updateTeamCount() {
+        binding.teamCountText.text = "Teams: ${teams.size}"
+    }
+    private fun showEditTeamNameDialog(team: Team, teamIndex: Int) {
+        val editText = EditText(this).apply {
+            setText(team.name)
+            setSingleLine()
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Edit Team Name")
+            .setView(editText)
+            .setPositiveButton("Save") { _, _ ->
+                val newName = editText.text.toString().trim()
+                if (newName.isNotEmpty()) {
+                    team.name = newName
+                    displayTeams()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+    private fun showDeleteTeamConfirmation(teamIndex: Int) {
+        AlertDialog.Builder(this)
+            .setTitle("Delete Team")
+            .setMessage("Are you sure you want to delete this team?")
+            .setPositiveButton("Delete") { _, _ ->
+                teams.removeAt(teamIndex)
+                displayTeams()
+                updateTeamCount()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
     //function to display teams in the scrollview
     @SuppressLint("UseSwitchCompatOrMaterialCode")
     private fun displayTeams() {
         binding.teamsContainer.removeAllViews()
+        updateTeamCount()
         //layout for teams to be displayed
         teams.forEachIndexed { index, team ->
             val teamLayout = LinearLayout(this).apply {
@@ -351,8 +436,28 @@ class MainActivity : AppCompatActivity() {
 
                 //sets background color for teams
                 setBackgroundResource(R.drawable.team_card_background)
-
+                //add long press listener to team layout to edit/delete team
+                setOnLongClickListener { view ->
+                    showTeamOptionsMenu(view, team, index)
+                    true
+                }
             }
+
+            //add rank display
+            val rankView = TextView(this).apply {
+                text = "#${team.currentRank}"
+                textSize = 18f
+                setTextColor(Color.BLACK)
+                typeface = Typeface.DEFAULT_BOLD
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    marginEnd = dpToPx(16)
+                    gravity = Gravity.CENTER_VERTICAL
+                }
+            }
+            teamLayout.addView(rankView)
 
             //team name and score in a vertical layout (left side)
             val infoLayout = LinearLayout(this).apply {
@@ -378,6 +483,15 @@ class MainActivity : AppCompatActivity() {
                 text = "Total Score: ${team.score}\nThis Question: ${team.questionScore}"
                 textSize = 16f
                 setTextColor(Color.DKGRAY)
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    //add margin between name and score
+                    topMargin = dpToPx(8)
+                    //add margin below score
+                    bottomMargin = dpToPx(8)
+                }
             }
             infoLayout.addView(scoreView)
 
@@ -392,65 +506,144 @@ class MainActivity : AppCompatActivity() {
                 )
             }
 
+            //define point values in matching pairs
+            val buttonPairs = listOf(
+                Pair(1, arrayOf(-1, "+1")),
+                Pair(5, arrayOf(-5, "+5")),
+                Pair(10, arrayOf(-10, "+10"))
+            )
 
-            //add points button using buttonContainer and functionality to add points
-            val addButton = Button(this).apply {
-                text = "+"
-                isEnabled = team.buttonStates.addEnabled && !team.isLocked
-                alpha = if (isEnabled) 1.0f else 0.5f
+            //create columns container
+            val buttonColumnsContainer = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
                 layoutParams = LinearLayout.LayoutParams(
-                    dpToPx(40),
-                    dpToPx(40)
-                ).apply {
-                    marginEnd = dpToPx(8)  // Margin between buttons
-                }
-                //when + button is pushed, update team score
-                setOnClickListener {
-                    updateTeamScore(index, 1)
-                }
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
             }
 
-
-            //subtract points button using buttonContainer and functionality to subtract points
-            val subtractButton = Button(this).apply {
-                text = "-"
-                isEnabled = team.buttonStates.subtractEnabled && !team.isLocked
-                alpha = if (isEnabled) 1.0f else 0.5f
-                layoutParams = LinearLayout.LayoutParams(
-                    dpToPx(40),  // Width in dp
-                    dpToPx(40)   // Height in dp
-                ).apply {
-                    marginEnd = dpToPx(8)
-                }
-                    setOnClickListener {
-                    updateTeamScore(index, -1)
-                }
-            }
-
-            //add switch for each team
-            val teamSwitch = Switch(this).apply {
-                isChecked = team.isLocked
+            //create left column for negative buttons
+            val negativeButtonColumn = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply {
                     marginEnd = dpToPx(8)
                 }
-                setOnCheckedChangeListener { _, isChecked ->
-                    team.isLocked = isChecked
-                    addButton.isEnabled = !isChecked
-                    subtractButton.isEnabled = !isChecked
-                    addButton.alpha = if (isChecked) 0.5f else 1.0f
-                    subtractButton.alpha = if (isChecked) 0.5f else 1.0f
+            }
+
+            //create right column for positive buttons
+            val positiveButtonColumn = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    marginStart = dpToPx(8)
                 }
             }
 
-            //place switch, +/- from left to right
-            buttonContainer.addView(teamSwitch)
-            buttonContainer.addView(subtractButton)
-            buttonContainer.addView(addButton)
+            //create matching pairs of buttons
+            buttonPairs.forEach { (value, labels) ->
+                //create negative button
+                val negativeButton = Button(this).apply {
+                    text = labels[0].toString()
+                    isEnabled = team.buttonStates.addEnabled && !team.isLocked
+                    alpha = if (isEnabled) 1.0f else 0.5f
+                    layoutParams = LinearLayout.LayoutParams(
+                        dpToPx(50),
+                        dpToPx(40)
+                    ).apply {
+                        bottomMargin = dpToPx(4)
+                    }
+                    setOnClickListener {
+                        updateTeamScore(index, -value)
+                    }
+                }
+                negativeButtonColumn.addView(negativeButton)
 
+                //create positive button
+                val positiveButton = Button(this).apply {
+                    text = labels[1].toString()
+                    isEnabled = team.buttonStates.addEnabled && !team.isLocked
+                    alpha = if (isEnabled) 1.0f else 0.5f
+                    layoutParams = LinearLayout.LayoutParams(
+                        dpToPx(50),
+                        dpToPx(40)
+                    ).apply {
+                        bottomMargin = dpToPx(4)
+                    }
+                    setOnClickListener {
+                        updateTeamScore(index, value)
+                    }
+                }
+                positiveButtonColumn.addView(positiveButton)
+            }
+
+            //create switch for each team
+            val teamSwitch = Switch(this).apply {
+                isChecked = team.isLocked
+                isEnabled = true
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+
+                //set initial button states
+                buttonColumnsContainer.children.forEach { column ->
+                    if (column is LinearLayout) {
+                        column.children.forEach { button ->
+                            if (button is Button) {
+                                button.isEnabled = !team.isLocked &&
+                                        (team.buttonStates.addEnabled || team.buttonStates.subtractEnabled)
+                                button.alpha = if (button.isEnabled) 1.0f else 0.5f
+                            }
+                        }
+                    }
+                }
+
+                //disable/enable buttons in both columns if switch is pressed
+                setOnCheckedChangeListener { _, isChecked ->
+                    team.isLocked = isChecked
+                    buttonColumnsContainer.children.forEach { column ->
+                        if (column is LinearLayout) {
+                            column.children.forEach { button ->
+                                if (button is Button) {
+                                    button.isEnabled = !isChecked &&
+                                            (team.buttonStates.addEnabled || team.buttonStates.subtractEnabled)
+                                    button.alpha = if (button.isEnabled) 1.0f else 0.5f
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            //create a separate container for the switch
+            val switchContainer = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            }
+
+            //add switch to its own container
+            switchContainer.addView(teamSwitch)
+
+            //add switch containers to team layout
+            teamLayout.addView(switchContainer)
+
+            //add +/- columns to container
+            buttonColumnsContainer.addView(negativeButtonColumn)
+            buttonColumnsContainer.addView(positiveButtonColumn)
+
+            //add columns container to main button container
+            buttonContainer.addView(buttonColumnsContainer)
+
+            //add buttonContainer to teamLayout
             teamLayout.addView(buttonContainer)
+
             binding.teamsContainer.addView(teamLayout)
         }
     }

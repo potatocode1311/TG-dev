@@ -3,6 +3,7 @@ agp = "8.8.1"
 kotlin = "1.9.24"
 coreKtx = "1.10.1"
 junit = "4.13.2"
+testng = "7.8.0"
 junitVersion = "1.1.5"
 espressoCore = "3.5.1"
 appcompat = "1.6.1"
@@ -10,12 +11,16 @@ kotlinSerialization = "1.9.0"
 material = "1.10.0"
 activity = "1.8.0"
 constraintlayout = "2.1.4"
-recyclerViewVersion = "1.3.2"
 uiGraphicsAndroid = "1.7.8"
+selenium = "4.12.1"
+appium = "8.5.1"
+testngVersion = "6.9.6"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
-androidx-recyclerview = { module = "androidx.recyclerview:recyclerview", version.ref = "recyclerViewVersion" }
+appium-java-client = { group = "io.appium", name = "java-client", version.ref = "appium" }
+testng = { group = "org.testng", name = "testng", version.ref = "testng" }
+selenium-java = { group = "org.seleniumhq.selenium", name = "selenium-java", version.ref = "selenium" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
@@ -25,6 +30,7 @@ material = { group = "com.google.android.material", name = "material", version.r
 androidx-activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
 androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
 androidx-ui-graphics-android = { group = "androidx.compose.ui", name = "ui-graphics-android", version.ref = "uiGraphicsAndroid" }
+testng-testng = { group = "org.testng", name = "testng", version.ref = "testngVersion" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

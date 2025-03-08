@@ -1,0 +1,4 @@
+- hold down on team layout to edit team name
+- rank teams based on score
+- add additional + button for points
+- add team count below question number
