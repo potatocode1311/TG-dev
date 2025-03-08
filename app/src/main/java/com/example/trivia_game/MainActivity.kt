@@ -75,6 +75,7 @@ class MainActivity : AppCompatActivity() {
         }
 
     }
+    //ranked team class to establish a ranking system between teams based on score
     private data class RankedTeam(
         val team: Team,
         val originalIndex: Int,
@@ -619,6 +620,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             }
+
             //create a separate container for the switch
             val switchContainer = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
