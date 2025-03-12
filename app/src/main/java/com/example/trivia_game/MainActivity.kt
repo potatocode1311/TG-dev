@@ -311,23 +311,31 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 "Next Question" -> {
-                    //increment question number
-                    questionNumber++
 
-                    //update question container with new question number
-                    binding.questionNumber.text = "Question: $questionNumber"
+                    val unlockedTeams = checkTeamStates()
 
-                    //update total scores and reset question scores
-                    finalizeQuestionScores()
+                    if (unlockedTeams.isNotEmpty()) {
+                        showUnlockedTeamsDialog(unlockedTeams)
+                    }
+                    else {
+                        //increment question number
+                        questionNumber++
 
-                    //reset switches for next question
-                    resetTeamSwitches()
+                        //update question container with new question number
+                        binding.questionNumber.text = "Question: $questionNumber"
 
-                    //calculate rankings
-                    calculateAndApplyRankings()
+                        //update total scores and reset question scores
+                        finalizeQuestionScores()
 
-                    //update teams with new info
-                    displayTeams()
+                        //reset switches for next question
+                        resetTeamSwitches()
+
+                        //calculate rankings
+                        calculateAndApplyRankings()
+
+                        //update teams with new info
+                        displayTeams()
+                    }
                 }
                 "New Game" -> {
 
@@ -418,6 +426,32 @@ class MainActivity : AppCompatActivity() {
             .setNegativeButton("Cancel", null)
             .show()
     }
+
+    private fun checkTeamStates(): List<String> {
+        val unlockedTeams = mutableListOf<String>()
+        teams.forEach { team ->
+            if (!team.isLocked) {
+                unlockedTeams.add(team.name)
+            }
+        }
+        return unlockedTeams
+    }
+    private fun showUnlockedTeamsDialog(unlockedTeams: List<String>) {
+        val message = buildString {
+            append("The following teams may not have been scored for this question:\n\n")
+            unlockedTeams.forEach { teamName ->
+                append("• $teamName\n")
+            }
+            append("\nPlease lock/score all teams before proceeding.")
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Teams not scored/locked")
+            .setMessage(message)
+            .setPositiveButton("OK", null)
+            .show()
+    }
+
     //function to display teams in the scrollview
     @SuppressLint("UseSwitchCompatOrMaterialCode")
     private fun displayTeams() {
