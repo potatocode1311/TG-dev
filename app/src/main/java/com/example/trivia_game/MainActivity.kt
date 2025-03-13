@@ -341,10 +341,17 @@ class MainActivity : AppCompatActivity() {
 
                     //clear the teamsContainer
                     binding.teamsContainer.removeAllViews()
+
+                    //reset team counter
+                    binding.teamCountText.text = "Teams: 0"
+
                     //reset question number
                     questionNumber = 1
-                    teams.clear()
                     binding.questionNumber.text = "Question: $questionNumber"
+
+                    //clear current teams
+                    teams.clear()
+
 
                 }
             }
