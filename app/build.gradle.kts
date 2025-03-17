@@ -61,6 +61,7 @@ dependencies {
     implementation(libs.selenium.java)
     implementation(libs.testng)
     //app dependencies
+    implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlin.serialization)
     implementation(libs.androidx.core.ktx)

@@ -2,7 +2,6 @@ package com.example.trivia_game
 
 import android.annotation.SuppressLint
 import android.app.AlertDialog
-import android.content.Context
 import android.content.DialogInterface
 import android.graphics.Color
 import android.graphics.Typeface
@@ -11,7 +10,6 @@ import android.os.Bundle
 import android.os.Parcel
 import android.os.Parcelable
 import android.text.InputType
-import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -34,17 +32,27 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.children
 import com.example.trivia_game.databinding.ActivityMainBinding
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.time.delay
 import kotlinx.parcelize.Parceler
 import kotlinx.parcelize.Parcelize
-
+import kotlinx.coroutines.delay
 
 
 class MainActivity : AppCompatActivity() {
-    private var questionNumber: Int = 1
+    private var questionNumber: Int = 0
     private val teams = mutableListOf<Team>()
     private var _binding: ActivityMainBinding? = null
     private val binding get() = _binding!!
     private var scoresLocked = false
+    private var timerJob: Job? = null
+    private var timerSeconds = 0
+    private val scope = CoroutineScope(Dispatchers.Main + Job())
     //data class for team that initializes it as a string and defaults score/question score to 0
     //and initializes the switch for each team
     @Parcelize
@@ -75,22 +83,63 @@ class MainActivity : AppCompatActivity() {
         }
 
     }
+
+    //companion keys to save time
+    companion object {
+        private const val KEY_TIMER_SECONDS = "timer_seconds"
+        private const val KEY_TIMER_RUNNING = "timer_running"
+    }
+
     //ranked team class to establish a ranking system between teams based on score
     private data class RankedTeam(
         val team: Team,
         val originalIndex: Int,
         var rank: Int = 0
     )
+
     //button states class to track button states
     data class ButtonStates(
         var addEnabled: Boolean = true,
         var subtractEnabled: Boolean = true
     )
 
+    //function that goes through and resets team switches
     private fun resetTeamSwitches() {
         teams.forEach { team ->
             team.isLocked = false
         }
+    }
+
+    //handles timer display
+    private fun formatTime(seconds: Int): String {
+        val minutes = seconds / 60
+        val remainingSeconds = seconds % 60
+        return String.format("%d:%02d", minutes, remainingSeconds)
+    }
+
+    //starts timer
+    private fun startTimer() {
+        timerJob?.cancel()
+        timerJob = scope.launch {
+            while (isActive) {
+                delay(1000L)
+                timerSeconds++
+                binding.timerText.text = formatTime(timerSeconds)
+            }
+        }
+    }
+
+    //resets timer
+    private fun resetTimer() {
+        timerJob?.cancel()
+        timerSeconds = 0
+        binding.timerText.text = formatTime(timerSeconds)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        timerJob?.cancel()
+        scope.cancel()
     }
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -101,8 +150,18 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
 
-        //initialize teams list if not already initialized
+        //restore timer state if it exists
+        savedInstanceState?.let { bundle ->
+            timerSeconds = bundle.getInt(KEY_TIMER_SECONDS, 0)
+            if (bundle.getBoolean(KEY_TIMER_RUNNING, false)) {
+                startTimer()
+            }
+            binding.timerText.text = formatTime(timerSeconds)
+        }
+
+        //restore teams list if it exists
         if (savedInstanceState != null) {
+
             //restore teams
             val savedTeams = savedInstanceState.getParcelableArrayList<Team>("teams")
             teams.clear()
@@ -119,6 +178,7 @@ class MainActivity : AppCompatActivity() {
 
             //update display
             displayTeams()
+
             //update round number
             updateQuestionDisplay()
         }
@@ -155,6 +215,10 @@ class MainActivity : AppCompatActivity() {
 
         //save the current question
         outState.putInt("questionNumber", questionNumber)
+
+        //save current time
+        outState.putInt(KEY_TIMER_SECONDS, timerSeconds)
+        outState.putBoolean(KEY_TIMER_RUNNING, timerJob?.isActive == true)
     }
 
     private fun updateQuestionDisplay() {
@@ -201,7 +265,7 @@ class MainActivity : AppCompatActivity() {
         input.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_DONE) {
                 //hide keyboard
-                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
                 imm.hideSoftInputFromWindow(input.windowToken, 0)
                 return@setOnEditorActionListener true
             }
@@ -226,7 +290,7 @@ class MainActivity : AppCompatActivity() {
             val teamName = input.text.toString()
             if (teamName.isNotBlank()) {
                 //hide keyboard first
-                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
                 imm.hideSoftInputFromWindow(input.windowToken, 0)
                 //get current button states for other teams that might be added
                 val currentStates = teams.map { team ->
@@ -256,7 +320,7 @@ class MainActivity : AppCompatActivity() {
 
         builder.setNegativeButton("Cancel") { dialog, _ ->
             //hide keyboard when canceled
-            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
             imm.hideSoftInputFromWindow(input.windowToken, 0)
             dialog.cancel()
         }
@@ -265,7 +329,7 @@ class MainActivity : AppCompatActivity() {
 
         //set dialog dismissal listener to ensure keyboard is hidden
         dialog.setOnDismissListener {
-            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
             imm.hideSoftInputFromWindow(input.windowToken, 0)
         }
 
@@ -280,7 +344,7 @@ class MainActivity : AppCompatActivity() {
         //show keyboard with a slight delay
         input.post {
             input.requestFocus()
-            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
             imm.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0)
         }
     }
@@ -327,6 +391,10 @@ class MainActivity : AppCompatActivity() {
                         //update total scores and reset question scores
                         finalizeQuestionScores()
 
+                        //reset timer and restart timer
+                        timerSeconds = 0
+                        startTimer()
+
                         //reset switches for next question
                         resetTeamSwitches()
 
@@ -339,6 +407,9 @@ class MainActivity : AppCompatActivity() {
                 }
                 "New Game" -> {
 
+                    //reset timer
+                    resetTimer()
+
                     //clear the teamsContainer
                     binding.teamsContainer.removeAllViews()
 
@@ -346,7 +417,7 @@ class MainActivity : AppCompatActivity() {
                     binding.teamCountText.text = "Teams: 0"
 
                     //reset question number
-                    questionNumber = 1
+                    questionNumber = 0
                     binding.questionNumber.text = "Question: $questionNumber"
 
                     //clear current teams
