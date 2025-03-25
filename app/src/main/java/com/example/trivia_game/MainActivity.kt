@@ -38,7 +38,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.time.delay
 import kotlinx.parcelize.Parceler
 import kotlinx.parcelize.Parcelize
 import kotlinx.coroutines.delay
@@ -221,6 +220,7 @@ class MainActivity : AppCompatActivity() {
         outState.putBoolean(KEY_TIMER_RUNNING, timerJob?.isActive == true)
     }
 
+    //function that updates question display counter
     private fun updateQuestionDisplay() {
         //update question number to current view on save state
         binding.questionNumber.text = "Question $questionNumber"
@@ -250,6 +250,7 @@ class MainActivity : AppCompatActivity() {
         teams.sortBy { it.currentRank }
     }
 
+    //function that brings up team name dialog box to enter team name
     private fun showTeamNameInputDialog() {
 
         val builder = AlertDialog.Builder(this)
@@ -348,6 +349,8 @@ class MainActivity : AppCompatActivity() {
             imm.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0)
         }
     }
+
+    //function that shows dialog boxes based on which button is pressed
     private fun showConfirmationDialog(actionName: String) {
         val builder = AlertDialog.Builder(this)
         builder.setTitle("Confirm Action")
@@ -376,6 +379,15 @@ class MainActivity : AppCompatActivity() {
 
                 "Next Question" -> {
 
+                    if (teams.isEmpty()) {
+                        //show dialog if no teams exist
+                        AlertDialog.Builder(this)
+                            .setTitle("No Teams")
+                            .setMessage("Please add at least one team before proceeding to the next question.")
+                            .setPositiveButton("OK", null)
+                            .show()
+                        return@setPositiveButton
+                    }
                     val unlockedTeams = checkTeamStates()
 
                     if (unlockedTeams.isNotEmpty()) {
@@ -422,8 +434,6 @@ class MainActivity : AppCompatActivity() {
 
                     //clear current teams
                     teams.clear()
-
-
                 }
             }
         }
@@ -444,6 +454,7 @@ class MainActivity : AppCompatActivity() {
         displayTeams()
         updateTeamCount()
     }
+
     //function that adds score and total questions this score for new total
     private fun finalizeQuestionScores() {
         teams.forEach { team ->
@@ -452,6 +463,8 @@ class MainActivity : AppCompatActivity() {
             team.questionScore = 0
         }
     }
+
+    //function that allows pop up menu for teams names to be edited or deleted
     private fun showTeamOptionsMenu(view: View, team: Team, teamIndex: Int) {
         val popup = PopupMenu(this, view)
         popup.menuInflater.inflate(R.menu.team_options_menu, popup.menu)
@@ -471,9 +484,13 @@ class MainActivity : AppCompatActivity() {
         }
         popup.show()
     }
+
+    //function that allows teams counter to increment
     private fun updateTeamCount() {
         binding.teamCountText.text = "Teams: ${teams.size}"
     }
+
+    //function that allows teams to be edited when selected
     private fun showEditTeamNameDialog(team: Team, teamIndex: Int) {
         val editText = EditText(this).apply {
             setText(team.name)
@@ -492,6 +509,8 @@ class MainActivity : AppCompatActivity() {
             .setNegativeButton("Cancel", null)
             .show()
     }
+
+    //function that allows teams to be deleted when selected
     private fun showDeleteTeamConfirmation(teamIndex: Int) {
         AlertDialog.Builder(this)
             .setTitle("Delete Team")
@@ -505,6 +524,7 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+    //function that checks to see if teams are locked
     private fun checkTeamStates(): List<String> {
         val unlockedTeams = mutableListOf<String>()
         teams.forEach { team ->
@@ -514,6 +534,8 @@ class MainActivity : AppCompatActivity() {
         }
         return unlockedTeams
     }
+
+    //function that checks to see if teams have been scored
     private fun showUnlockedTeamsDialog(unlockedTeams: List<String>) {
         val message = buildString {
             append("The following teams may not have been scored for this question:\n\n")
@@ -758,6 +780,7 @@ class MainActivity : AppCompatActivity() {
             //add buttonContainer to teamLayout
             teamLayout.addView(buttonContainer)
 
+            //add teamLayout to entire teams container with all buttons/team name/switches
             binding.teamsContainer.addView(teamLayout)
         }
     }
