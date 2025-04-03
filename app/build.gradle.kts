@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    id("org.jetbrains.kotlin.plugin.serialization")
     id("kotlin-parcelize")
 }
 
@@ -18,7 +19,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.trivia_game"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
@@ -62,8 +63,9 @@ dependencies {
     implementation(libs.testng)
     //app dependencies
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.serialization.core)
     implementation(libs.androidx.core.ktx)
-    implementation(libs.kotlin.serialization)
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)

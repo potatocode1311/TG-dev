@@ -2,7 +2,10 @@ package com.example.trivia_game
 
 import android.annotation.SuppressLint
 import android.app.AlertDialog
+import android.app.GameState
+import android.content.Context
 import android.content.DialogInterface
+import android.content.SharedPreferences
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Build
@@ -31,6 +34,8 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.children
+import com.example.gamestate.GameStateManager
+import com.example.gamestate.SerializableTeam
 import com.example.trivia_game.databinding.ActivityMainBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -41,6 +46,8 @@ import kotlinx.coroutines.launch
 import kotlinx.parcelize.Parceler
 import kotlinx.parcelize.Parcelize
 import kotlinx.coroutines.delay
+import kotlinx.serialization.Serializable
+
 
 
 class MainActivity : AppCompatActivity() {
@@ -52,9 +59,12 @@ class MainActivity : AppCompatActivity() {
     private var timerJob: Job? = null
     private var timerSeconds = 0
     private val scope = CoroutineScope(Dispatchers.Main + Job())
+    private lateinit var gameStateManager: GameStateManager
+
     //data class for team that initializes it as a string and defaults score/question score to 0
     //and initializes the switch for each team
     @Parcelize
+    @Serializable
     data class Team(
         var name: String,
         var score: Int = 0,
@@ -83,8 +93,9 @@ class MainActivity : AppCompatActivity() {
 
     }
 
-    //companion keys to save time
+    //companion keys to save time and game state
     companion object {
+        //timer keys to track time
         private const val KEY_TIMER_SECONDS = "timer_seconds"
         private const val KEY_TIMER_RUNNING = "timer_running"
     }
@@ -97,6 +108,7 @@ class MainActivity : AppCompatActivity() {
     )
 
     //button states class to track button states
+    @Serializable
     data class ButtonStates(
         var addEnabled: Boolean = true,
         var subtractEnabled: Boolean = true
@@ -140,10 +152,14 @@ class MainActivity : AppCompatActivity() {
         timerJob?.cancel()
         scope.cancel()
     }
+
+
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         //main activity initialization
+        gameStateManager = GameStateManager(getSharedPreferences("GamePrefs", Context.MODE_PRIVATE))
+        startAutoSave()
         WindowCompat.setDecorFitsSystemWindows(window, false)
         _binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -181,6 +197,7 @@ class MainActivity : AppCompatActivity() {
             //update round number
             updateQuestionDisplay()
         }
+
         //initialize the round number display
         binding.questionNumber.text = "Question: $questionNumber"
         enableEdgeToEdge()
@@ -203,6 +220,84 @@ class MainActivity : AppCompatActivity() {
         }
         button3.setOnClickListener {
             showConfirmationDialog("Next Question")
+        }
+        binding.loadGameButton.setOnClickListener {
+            showLoadGameDialog()
+        }
+    }
+
+
+    //function that autosaves every 10 seconds - 10000 milliseconds = 10 seconds
+    private fun startAutoSave() {
+        scope.launch {
+            while (isActive) {
+                delay(10000) // Save every minute
+                saveCurrentGameState()
+            }
+        }
+    }
+
+    //function that saves all current game variables, switch/button states, and ranks
+    private fun saveCurrentGameState() {
+        val serializableTeams = teams.map { team ->
+            SerializableTeam(
+                name = team.name,
+                score = team.score,
+                questionScore = team.questionScore,
+                currentRank = team.currentRank,
+                isLocked = team.isLocked,
+                buttonStates = team.buttonStates
+            )
+        }
+
+        gameStateManager.saveCurrentGame(
+            questionNumber = questionNumber,
+            teams = serializableTeams,
+            timerSeconds = timerSeconds
+        )
+    }
+
+    private fun showLoadGameDialog() {
+        val savedGames = gameStateManager.getSavedGames()
+        if (savedGames.isEmpty()) {
+            Toast.makeText(this, "No saved games found", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Load Game")
+            .setItems(savedGames.map { it.gameName }.toTypedArray()) { _, index ->
+                loadGame(savedGames[index].id)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun loadGame(gameId: Long) {
+        gameStateManager.loadGame(gameId)?.let { savedGame ->
+            //convert SerializableTeam back to Team
+            teams.clear()
+            teams.addAll(savedGame.teams.map { serializableTeam ->
+                Team(serializableTeam.name).apply {
+                    score = serializableTeam.score
+                    questionScore = serializableTeam.questionScore
+                    currentRank = serializableTeam.currentRank
+                    isLocked = serializableTeam.isLocked
+                    buttonStates = serializableTeam.buttonStates
+                }
+            })
+            //restore game state
+            questionNumber = savedGame.questionNumber
+            timerSeconds = savedGame.timerSeconds
+
+            //update UI
+            binding.questionNumber.text = "Question: $questionNumber"
+            binding.timerText.text = formatTime(timerSeconds)
+            updateTeamCount()
+            calculateAndApplyRankings()
+            displayTeams()
+
+            Toast.makeText(this, "Game loaded successfully", Toast.LENGTH_SHORT).show()
         }
     }
 

@@ -9,114 +9,134 @@
     android:fitsSystemWindows="true"
     tools:context=".MainActivity">
 
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/guideline"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        app:layout_constraintGuide_percent="0.91" />
-
+    <!-- ScrollView For Scrolling Through Teams -->
     <ScrollView
         android:id="@+id/teamsScrollView"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_marginStart="8dp"
+        android:layout_marginTop="16dp"
         android:layout_marginEnd="8dp"
         android:layout_marginBottom="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/questionNumber"
-        app:layout_constraintVertical_bias="1.0">
+        app:layout_constraintTop_toBottomOf="@+id/textGroup">
 
-        <LinearLayout
-            android:id="@+id/teamsContainer"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingHorizontal="8dp"
-            android:paddingVertical="8dp">
-
-
-        </LinearLayout>
     </ScrollView>
 
+    <!-- New Game Button -->
     <Button
         android:id="@+id/newGame"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
+        android:layout_marginEnd="8dp"
         android:text="New Game"
         app:layout_constraintEnd_toStartOf="@+id/addTeam"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintHorizontal_weight="1" />
 
+    <!-- Add Team Button -->
     <Button
         android:id="@+id/addTeam"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
         android:layout_marginTop="16dp"
+        android:layout_marginEnd="8dp"
         android:text="Add Team"
         app:layout_constraintEnd_toStartOf="@+id/nextQuestion"
         app:layout_constraintStart_toEndOf="@+id/newGame"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintHorizontal_weight="1" />
 
+    <!-- Next Question Button -->
     <Button
         android:id="@+id/nextQuestion"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
         android:layout_marginTop="16dp"
-        android:layout_marginEnd="16dp"
-        android:text="Next Question"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/addTeam"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <TextView
-        android:id="@+id/timerText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
         android:layout_marginEnd="8dp"
-        android:text="0:00"
-        android:textColor="@android:color/white"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        app:layout_constraintBottom_toBottomOf="@+id/nextQuestion"
-        app:layout_constraintEnd_toEndOf="@+id/nextQuestion"
-        app:layout_constraintStart_toStartOf="@+id/guideline"
-        app:layout_constraintTop_toTopOf="@+id/nextQuestion" />
+        android:text="Next Question"
+        app:layout_constraintEnd_toStartOf="@+id/loadGameButton"
+        app:layout_constraintStart_toEndOf="@+id/addTeam"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintHorizontal_weight="1" />
 
-    <TextView
-        android:id="@+id/questionNumber"
+    <!-- Load Game Button -->
+    <Button
+        android:id="@+id/loadGameButton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
+        android:text="Load Game"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/nextQuestion"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintHorizontal_weight="1" />
+
+
+    <!-- Create a container for the text elements -->
+    <LinearLayout
+        android:id="@+id/textGroup"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:background="@drawable/rounded_background"
-        android:fontFamily="sans-serif"
-        android:padding="8dp"
-        android:text="Question: 1"
-        android:textColor="@android:color/black"
-        android:textSize="18sp"
+        android:gravity="center"
+        android:orientation="horizontal"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/newGame" />
+        app:layout_constraintTop_toBottomOf="@+id/newGame">
+        <!-- Question Number Text Box -->
+        <TextView
+            android:id="@+id/questionNumber"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/rounded_background"
+            android:padding="8dp"
+            android:text="Question: 1"
+            android:textColor="@android:color/black"
+            android:textSize="18sp" />
 
-    <TextView
-        android:id="@+id/teamCountText"
-        android:layout_width="wrap_content"
+        <!-- Team Count Text Box For Tracking Teams -->
+        <TextView
+            android:id="@+id/teamCountText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:background="@drawable/rounded_background"
+            android:padding="8dp"
+            android:text="Teams: 0"
+            android:textColor="@android:color/black"
+            android:textSize="16sp" />
+
+        <!-- Timer Text Box For Tracking Time On Question -->
+        <TextView
+            android:id="@+id/timerText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:background="@drawable/rounded_background"
+            android:padding="8dp"
+            android:text="0:00"
+            android:textColor="@android:color/black"
+            android:textSize="18sp" />
+    </LinearLayout>
+
+    <!-- Container For Teams Display -->
+    <LinearLayout
+        android:id="@+id/teamsContainer"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="8dp"
-        android:layout_marginBottom="16dp"
-        android:background="@drawable/rounded_background"
-        android:text="Teams: 0"
-        android:textColor="@android:color/black"
-        android:textSize="16sp"
-        app:layout_constraintBottom_toTopOf="@+id/teamsScrollView"
-        app:layout_constraintStart_toEndOf="@+id/questionNumber" />
+        android:orientation="vertical"
+        app:layout_constraintTop_toBottomOf="@+id/textGroup">
+    </LinearLayout>
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>
