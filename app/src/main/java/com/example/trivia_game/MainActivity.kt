@@ -2,10 +2,8 @@ package com.example.trivia_game
 
 import android.annotation.SuppressLint
 import android.app.AlertDialog
-import android.app.GameState
 import android.content.Context
 import android.content.DialogInterface
-import android.content.SharedPreferences
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Build
