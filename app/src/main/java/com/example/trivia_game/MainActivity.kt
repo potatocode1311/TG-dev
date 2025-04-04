@@ -295,6 +295,10 @@ class MainActivity : AppCompatActivity() {
             calculateAndApplyRankings()
             displayTeams()
 
+            //restart timer
+            timerJob?.cancel()
+            startTimer()
+
             Toast.makeText(this, "Game loaded successfully", Toast.LENGTH_SHORT).show()
         }
     }
