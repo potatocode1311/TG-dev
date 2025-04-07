@@ -74,6 +74,35 @@ class GameStateManager(private val sharedPreferences: SharedPreferences) {
         loadSavedGames()
     }
 
+
+    fun saveAutoSaveGame(
+        questionNumber: Int,
+        teams: List<SerializableTeam>,
+        timerSeconds: Int
+    ) {
+        val autoSaveGame = SavedGameState(
+            //fixed ID for autosave slot
+            id = -1L,
+            questionNumber = questionNumber,
+            teams = teams,
+            timerSeconds = timerSeconds,
+            gameName = "Autosave"
+        )
+
+        //check if an autosave already exists
+        val existingAutoSaveIndex = savedGames.indexOfFirst { it.id == -1L }
+        if (existingAutoSaveIndex != -1) {
+            //overwrite the existing autosave
+            savedGames[existingAutoSaveIndex] = autoSaveGame
+        } else {
+            //add a new autosave
+            savedGames.add(0, autoSaveGame)
+        }
+
+        //persist the updated list of saved games
+        persistGames()
+    }
+
     //saves the current game state for question number, current list of teams, and current timer value
     fun saveCurrentGame(
         questionNumber: Int,
@@ -102,6 +131,17 @@ class GameStateManager(private val sharedPreferences: SharedPreferences) {
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    private fun resetAutoSave() {
+        savedGames.removeAll { it.id == -1L } // Remove the autosave entry
+        persistGames()
+    }
+
+    fun clearSavedGames() {
+        savedGames.clear() // Clear the in-memory list
+        persistGames() // Persist the empty list to SharedPreferences
+        println("All saved games have been cleared.")
     }
 
     //loads saved games from SharedPreferences

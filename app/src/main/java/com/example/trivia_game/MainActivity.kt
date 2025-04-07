@@ -11,6 +11,7 @@ import android.os.Bundle
 import android.os.Parcel
 import android.os.Parcelable
 import android.text.InputType
+import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -33,6 +34,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.children
 import com.example.gamestate.GameStateManager
+import com.example.gamestate.SavedGameState
 import com.example.gamestate.SerializableTeam
 import com.example.trivia_game.databinding.ActivityMainBinding
 import kotlinx.coroutines.CoroutineScope
@@ -151,16 +153,40 @@ class MainActivity : AppCompatActivity() {
         scope.cancel()
     }
 
-
+    //main activity initialization
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        //main activity initialization
-        gameStateManager = GameStateManager(getSharedPreferences("GamePrefs", Context.MODE_PRIVATE))
-        startAutoSave()
-        WindowCompat.setDecorFitsSystemWindows(window, false)
+
         _binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        //initialize gameStateManager
+        gameStateManager = GameStateManager(getSharedPreferences("GamePrefs", Context.MODE_PRIVATE))
+
+        try {
+            //look for autosave using id -1L which is designated for autosaves
+            gameStateManager.loadGame(-1L)?.let { autosave ->
+                if (isValidAutosave(autosave)) {
+                    loadAutosave(autosave)
+                    startAutoSave() // Start autosaving only if we have a valid game
+                    Toast.makeText(this, "Previous game restored", Toast.LENGTH_SHORT).show()
+                } else {
+                    //invalid autosave - start fresh
+                    resetAutoSave()
+                }
+            } ?: run {
+                //no autosave exists
+                resetAutoSave()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(this, "Failed to load autosave. Starting fresh.", Toast.LENGTH_SHORT).show()
+            resetAutoSave()
+        }
+        startAutoSave()
+
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+
 
 
         //restore timer state if it exists
@@ -215,25 +241,84 @@ class MainActivity : AppCompatActivity() {
         }
         button2.setOnClickListener {
             showConfirmationDialog("Add Team")
+            saveAutoSaveGameState()
         }
         button3.setOnClickListener {
             showConfirmationDialog("Next Question")
+            saveAutoSaveGameState()
         }
         binding.loadGameButton.setOnClickListener {
             showLoadGameDialog()
+            saveAutoSaveGameState()
         }
     }
 
-
-    //function that autosaves every 10 seconds - 10000 milliseconds = 10 seconds
+    private fun isValidAutosave(autosave: SavedGameState): Boolean {
+        //to be a valid autosave, the id must exist, question number, timer >=0, and teams cannot be empty
+        return autosave.id == -1L && 
+                autosave.questionNumber >= 0 &&
+                autosave.timerSeconds >= 0 &&
+                (autosave.teams.isNotEmpty() || autosave.questionNumber == 0)
+    }
+    //function that autosaves every 5 seconds - 5000 milliseconds = 5 seconds
     private fun startAutoSave() {
         scope.launch {
             while (isActive) {
-                delay(10000) // Save every minute
-                saveCurrentGameState()
+                delay(5000)
+                saveAutoSaveGameState()
             }
         }
     }
+
+
+    //function to create a new autosave
+    private fun createNewManualSave() {
+        val serializableTeams = teams.map { team ->
+            SerializableTeam(
+                name = team.name,
+                score = team.score,
+                questionScore = team.questionScore,
+                currentRank = team.currentRank,
+                isLocked = team.isLocked,
+                buttonStates = team.buttonStates
+            )
+        }
+
+        gameStateManager.saveCurrentGame(
+            questionNumber = questionNumber,
+            teams = serializableTeams,
+            timerSeconds = timerSeconds
+        )
+    }
+
+    private fun saveAutoSaveGameState() {
+        val serializableTeams = teams.map { team ->
+            SerializableTeam(
+                name = team.name,
+                score = team.score,
+                questionScore = team.questionScore,
+                currentRank = team.currentRank,
+                isLocked = team.isLocked,
+                buttonStates = team.buttonStates
+            )
+        }
+
+        gameStateManager.saveAutoSaveGame(
+            questionNumber = questionNumber,
+            teams = serializableTeams,
+            timerSeconds = timerSeconds
+        )
+    }
+
+    private fun resetAutoSave() {
+        val serializableTeams = emptyList<SerializableTeam>()
+        gameStateManager.saveAutoSaveGame(
+            questionNumber = 0,
+            teams = serializableTeams,
+            timerSeconds = 0
+        )
+    }
+
 
     //function that saves all current game variables, switch/button states, and ranks
     private fun saveCurrentGameState() {
@@ -271,6 +356,42 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun loadAutosave(savedGame: SavedGameState) {
+        //validate the saved game state
+        if (savedGame.teams.isNullOrEmpty()) {
+            throw IllegalStateException("Teams list is empty or null in the autosave.")
+        }
+
+        //restore game state
+        questionNumber = savedGame.questionNumber
+        timerSeconds = savedGame.timerSeconds
+
+        //restore teams
+        teams.clear()
+        teams.addAll(savedGame.teams.map { serializableTeam ->
+            Team(serializableTeam.name).apply {
+                score = serializableTeam.score
+                questionScore = serializableTeam.questionScore
+                currentRank = serializableTeam.currentRank
+                isLocked = serializableTeam.isLocked
+                buttonStates = serializableTeam.buttonStates
+            }
+        })
+
+        //update UI
+        binding.questionNumber.text = "Question: $questionNumber"
+        binding.timerText.text = formatTime(timerSeconds)
+        displayTeams()
+        calculateAndApplyRankings()
+
+        //restart timer if necessary
+        if (questionNumber > 0) {
+            startTimer()
+        }
+
+        Toast.makeText(this, "Autosave loaded successfully.", Toast.LENGTH_SHORT).show()
+    }
+
     private fun loadGame(gameId: Long) {
         gameStateManager.loadGame(gameId)?.let { savedGame ->
             //convert SerializableTeam back to Team
@@ -297,7 +418,9 @@ class MainActivity : AppCompatActivity() {
 
             //restart timer
             timerJob?.cancel()
-            startTimer()
+            if (questionNumber > 0) {
+                startTimer()
+            }
 
             Toast.makeText(this, "Game loaded successfully", Toast.LENGTH_SHORT).show()
         }
@@ -531,6 +654,9 @@ class MainActivity : AppCompatActivity() {
 
                     //clear current teams
                     teams.clear()
+
+                    //create new auto save
+                    resetAutoSave()
                 }
             }
         }
@@ -791,6 +917,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     setOnClickListener {
                         updateTeamScore(index, -value)
+                        saveAutoSaveGameState()
                     }
                 }
                 negativeButtonColumn.addView(negativeButton)
@@ -808,6 +935,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     setOnClickListener {
                         updateTeamScore(index, value)
+                        saveAutoSaveGameState()
                     }
                 }
                 positiveButtonColumn.addView(positiveButton)
@@ -849,6 +977,7 @@ class MainActivity : AppCompatActivity() {
                             }
                         }
                     }
+                    saveAutoSaveGameState()
                 }
             }
 
