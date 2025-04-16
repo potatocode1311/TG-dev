@@ -1,4 +1,4 @@
-package com.trivia_game.utilities;
+package com.example.trivia_game.utils;
 
 import java.io.File;
 import java.nio.file.Path;

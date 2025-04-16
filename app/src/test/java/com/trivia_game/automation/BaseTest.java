@@ -5,7 +5,7 @@ import org.testng.annotations.BeforeTest;
 import java.net.URL;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.android.options.UiAutomator2Options;
-import com.trivia_game.utilities.ApkPathUtil;
+import com.example.trivia_game.utils.ApkPathUtil;
 
 public class BaseTest {
 

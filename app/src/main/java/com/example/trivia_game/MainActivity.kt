@@ -1,5 +1,6 @@
 package com.example.trivia_game
 
+import com.example.trivia_game.utils.Logger
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.Context
@@ -11,7 +12,6 @@ import android.os.Bundle
 import android.os.Parcel
 import android.os.Parcelable
 import android.text.InputType
-import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -47,7 +47,7 @@ import kotlinx.parcelize.Parceler
 import kotlinx.parcelize.Parcelize
 import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
-
+import kotlin.system.exitProcess
 
 
 class MainActivity : AppCompatActivity() {
@@ -148,6 +148,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        Logger.log("Application shutting down normally")
         super.onDestroy()
         timerJob?.cancel()
         scope.cancel()
@@ -157,6 +158,15 @@ class MainActivity : AppCompatActivity() {
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        //initialize logger
+        Logger.initialize(this)
+
+        //setup global crash handler
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            Logger.log("Fatal error in thread ${thread.name}", throwable)
+            exitProcess(1)
+        }
 
         _binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -168,7 +178,8 @@ class MainActivity : AppCompatActivity() {
             gameStateManager.loadGame(-1L)?.let { autosave ->
                 if (isValidAutosave(autosave)) {
                     loadAutosave(autosave)
-                    startAutoSave() // Start autosaving only if we have a valid game
+                    //start autosaving if it's a valid autoload
+                    startAutoSave()
                     Toast.makeText(this, "Previous game restored", Toast.LENGTH_SHORT).show()
                 } else {
                     //invalid autosave - start fresh
@@ -237,17 +248,21 @@ class MainActivity : AppCompatActivity() {
 
         //show confirmation dialog boxes when buttons are pushed
         button1.setOnClickListener {
+            Logger.log("New Game button pushed")
             showConfirmationDialog("New Game")
         }
         button2.setOnClickListener {
+            Logger.log("Add Team button pushed")
             showConfirmationDialog("Add Team")
             saveAutoSaveGameState()
         }
         button3.setOnClickListener {
+            Logger.log("Next Question button pushed")
             showConfirmationDialog("Next Question")
             saveAutoSaveGameState()
         }
         binding.loadGameButton.setOnClickListener {
+            Logger.log("Load Game button pushed")
             showLoadGameDialog()
             saveAutoSaveGameState()
         }
@@ -255,7 +270,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun isValidAutosave(autosave: SavedGameState): Boolean {
         //to be a valid autosave, the id must exist, question number, timer >=0, and teams cannot be empty
-        return autosave.id == -1L && 
+        return autosave.id == -1L &&
                 autosave.questionNumber >= 0 &&
                 autosave.timerSeconds >= 0 &&
                 (autosave.teams.isNotEmpty() || autosave.questionNumber == 0)
@@ -796,6 +811,7 @@ class MainActivity : AppCompatActivity() {
                 setBackgroundResource(R.drawable.team_card_background)
                 //add long press listener to team layout to edit/delete team
                 setOnLongClickListener { view ->
+                    Logger.log("Bringing up team options mini menu")
                     showTeamOptionsMenu(view, team, index)
                     true
                 }
@@ -916,6 +932,7 @@ class MainActivity : AppCompatActivity() {
                         bottomMargin = dpToPx(4)
                     }
                     setOnClickListener {
+                        Logger.log("Negative point button pushed")
                         updateTeamScore(index, -value)
                         saveAutoSaveGameState()
                     }
@@ -934,6 +951,7 @@ class MainActivity : AppCompatActivity() {
                         bottomMargin = dpToPx(4)
                     }
                     setOnClickListener {
+                        Logger.log("Positive point button pushed")
                         updateTeamScore(index, value)
                         saveAutoSaveGameState()
                     }
@@ -965,6 +983,7 @@ class MainActivity : AppCompatActivity() {
 
                 //disable/enable buttons in both columns if switch is pressed
                 setOnCheckedChangeListener { _, isChecked ->
+                    Logger.log("Locked team switch pressed")
                     team.isLocked = isChecked
                     buttonColumnsContainer.children.forEach { column ->
                         if (column is LinearLayout) {
@@ -1018,6 +1037,7 @@ class MainActivity : AppCompatActivity() {
 
     //function to update score when +/- buttons are used
     private fun updateTeamScore(teamIndex: Int, points: Int) {
+        Logger.log("Updating team score")
         if (scoresLocked) return
         if (teamIndex in teams.indices) {
             teams[teamIndex].questionScore += points
