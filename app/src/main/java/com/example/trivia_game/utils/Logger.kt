@@ -12,7 +12,7 @@ object Logger {
     private const val TAG = "TriviaGame"
     private lateinit var logFile: File
     private var isInitialized = false
-    private const val MAX_LOG_AGE_DAYS = 90
+    private const val MAX_LOG_AGE_DAYS = 7
 
     fun initialize(context: Context) {
         if (!isInitialized) {
