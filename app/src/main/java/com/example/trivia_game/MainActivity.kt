@@ -286,6 +286,8 @@ class MainActivity : AppCompatActivity() {
     }
 
 
+
+
     //function to create a new autosave
     private fun createNewManualSave() {
         val serializableTeams = teams.map { team ->
@@ -556,8 +558,7 @@ class MainActivity : AppCompatActivity() {
 
         builder.setNegativeButton("Cancel") { dialog, _ ->
             //hide keyboard when canceled
-            val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
-            imm.hideSoftInputFromWindow(input.windowToken, 0)
+            hideKeyboard(input)
             dialog.cancel()
         }
 
@@ -565,8 +566,7 @@ class MainActivity : AppCompatActivity() {
 
         //set dialog dismissal listener to ensure keyboard is hidden
         dialog.setOnDismissListener {
-            val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
-            imm.hideSoftInputFromWindow(input.windowToken, 0)
+            hideKeyboard(input)
         }
 
         //force dialog to use a specific configuration
@@ -581,8 +581,13 @@ class MainActivity : AppCompatActivity() {
         input.post {
             input.requestFocus()
             val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
-            imm.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0)
+            imm.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
         }
+    }
+
+    private fun hideKeyboard(view: View) {
+        val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(view.windowToken, 0)
     }
 
     //function that shows dialog boxes based on which button is pressed
