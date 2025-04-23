@@ -14,8 +14,11 @@ object Logger {
     private var isInitialized = false
     private const val MAX_LOG_AGE_DAYS = 7
 
+
+
     fun initialize(context: Context) {
         if (!isInitialized) {
+
             val logDir = File(context.getExternalFilesDir(null), "logs")
             if (!logDir.exists()) {
                 logDir.mkdirs()
@@ -32,6 +35,9 @@ object Logger {
             log("Application started")
         }
     }
+
+
+
 
     private fun cleanupOldLogs(logDir: File) {
         try {
@@ -60,6 +66,11 @@ object Logger {
         if (!isInitialized) {
             Log.e(TAG, "Logger not initialized!")
             return
+        }
+        if (throwable != null) {
+            Log.e(TAG, "💥 $message", throwable)
+        } else {
+            Log.d(TAG, "📱 $message")
         }
 
         val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US).format(Date())

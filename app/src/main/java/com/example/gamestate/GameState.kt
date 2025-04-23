@@ -1,7 +1,11 @@
 package com.example.gamestate
 
+import android.app.AlertDialog
+import android.content.Context
 import android.content.SharedPreferences
+import android.widget.Toast
 import com.example.trivia_game.MainActivity
+import com.example.trivia_game.utils.Logger
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
@@ -57,6 +61,7 @@ data class SavedGameState(
 //uses Android SharedPreferences for persistent storage
 class GameStateManager(private val sharedPreferences: SharedPreferences) {
     private var savedGames = mutableListOf<SavedGameState>()
+
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
@@ -67,81 +72,111 @@ class GameStateManager(private val sharedPreferences: SharedPreferences) {
     //constants for game state management
     companion object {
         private const val KEY_SAVED_GAMES = "saved_games"
-        private const val MAX_SAVED_GAMES = 10
+        private const val MAX_HISTORY = 10
+        const val AUTOSAVE_ID = -1L
+
     }
 
     init {
         loadSavedGames()
     }
 
+    // Add function to get non-autosave games
+    fun getGameHistory(): List<SavedGameState> {
+        return savedGames
+            .filter { it.id != AUTOSAVE_ID }
+            .take(MAX_HISTORY)
+            .sortedByDescending { it.savedAt }
+    }
+
+
+    fun saveGameToHistory(
+        questionNumber: Int,
+        teams: List<SerializableTeam>,
+        timerSeconds: Int,
+        gameName: String
+    ) {
+        val historyGame = SavedGameState(
+            id = System.currentTimeMillis(),  // Unique timestamp ID
+            savedAt = LocalDateTime.now(),
+            questionNumber = questionNumber,
+            teams = teams.map { it.copy() },  // Create deep copy of teams
+            timerSeconds = timerSeconds,
+            gameName = gameName
+        )
+
+        // Remove existing game with same name if exists (to avoid duplicates)
+        savedGames.removeAll { it.gameName == gameName && it.id != AUTOSAVE_ID }
+
+        // Add new game to history
+        savedGames.add(0, historyGame)
+
+        // Maintain history limit
+        val nonAutoSaves = savedGames.filter { it.id != AUTOSAVE_ID }
+        if (nonAutoSaves.size > MAX_HISTORY) {
+            savedGames.removeAll { game ->
+                game.id != AUTOSAVE_ID && game.savedAt <= nonAutoSaves[MAX_HISTORY - 1].savedAt
+            }
+        }
+
+        persistGames()
+    }
+
+
 
     fun saveAutoSaveGame(
         questionNumber: Int,
         teams: List<SerializableTeam>,
-        timerSeconds: Int
+        timerSeconds: Int,
+        gameName: String
     ) {
         val autoSaveGame = SavedGameState(
             //fixed ID for autosave slot
-            id = -1L,
+            id = AUTOSAVE_ID,
             questionNumber = questionNumber,
             teams = teams,
             timerSeconds = timerSeconds,
-            gameName = "Autosave"
+            gameName = "$gameName (Autosave)"
         )
 
-        //check if an autosave already exists
-        val existingAutoSaveIndex = savedGames.indexOfFirst { it.id == -1L }
+        // Replace existing autosave or add new one
+        val existingAutoSaveIndex = savedGames.indexOfFirst { it.id == AUTOSAVE_ID }
         if (existingAutoSaveIndex != -1) {
-            //overwrite the existing autosave
             savedGames[existingAutoSaveIndex] = autoSaveGame
         } else {
-            //add a new autosave
             savedGames.add(0, autoSaveGame)
         }
-
-        //persist the updated list of saved games
         persistGames()
     }
 
-    //saves the current game state for question number, current list of teams, and current timer value
-    fun saveCurrentGame(
-        questionNumber: Int,
-        teams: List<SerializableTeam>,
-        timerSeconds: Int
-    ) {
-        val currentGame = SavedGameState(
-            questionNumber = questionNumber,
-            teams = teams,
-            timerSeconds = timerSeconds
-        )
 
-        savedGames.add(0, currentGame)
-        if (savedGames.size > MAX_SAVED_GAMES) {
-            savedGames.removeAt(MAX_SAVED_GAMES)
-        }
-
-        persistGames()
-    }
 
     //persists the saved games list to SharedPreferences as JSON and handles serialization errors
     private fun persistGames() {
         try {
+            Logger.log("Persisting ${savedGames.size} games")
             val jsonString = json.encodeToString(savedGames)
             sharedPreferences.edit().putString(KEY_SAVED_GAMES, jsonString).apply()
         } catch (e: Exception) {
+            Logger.log("Error persisting games", e)
             e.printStackTrace()
         }
     }
 
+
+
     private fun resetAutoSave() {
-        savedGames.removeAll { it.id == -1L } // Remove the autosave entry
+        //remove autosave history
+        savedGames.removeAll { it.id == -1L }
         persistGames()
     }
 
-    fun clearSavedGames() {
-        savedGames.clear() // Clear the in-memory list
-        persistGames() // Persist the empty list to SharedPreferences
-        println("All saved games have been cleared.")
+    fun clearAllSavedGames() {
+        // Clear both in-memory list and SharedPreferences
+        savedGames.clear()
+        sharedPreferences.edit().clear().apply()
+        persistGames()
+        println("All saved games and autosaves have been cleared.")
     }
 
     //loads saved games from SharedPreferences
@@ -163,9 +198,15 @@ class GameStateManager(private val sharedPreferences: SharedPreferences) {
     //returns a copy of the saved games list
     fun getSavedGames(): List<SavedGameState> = savedGames.toList()
 
-    //retrieves a specific saved game by its ID
+
+    //function to load a game from either autosave or history
     fun loadGame(id: Long): SavedGameState? {
-        return savedGames.find { it.id == id }
+        val game = savedGames.find { it.id == id }
+
+        // Create deep copy of found game to prevent shared references
+        return game?.copy(
+            teams = game.teams.map { it.copy() }
+        )
     }
 
 }

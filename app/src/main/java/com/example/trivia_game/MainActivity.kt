@@ -11,7 +11,9 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Parcel
 import android.os.Parcelable
+import android.text.Editable
 import android.text.InputType
+import android.text.TextWatcher
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -41,12 +43,15 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.parcelize.Parceler
 import kotlinx.parcelize.Parcelize
 import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import kotlin.system.exitProcess
 
 
@@ -60,6 +65,9 @@ class MainActivity : AppCompatActivity() {
     private var timerSeconds = 0
     private val scope = CoroutineScope(Dispatchers.Main + Job())
     private lateinit var gameStateManager: GameStateManager
+    private var isGameActive = false
+    private var currentGameName: String = ""
+
 
     //data class for team that initializes it as a string and defaults score/question score to 0
     //and initializes the switch for each team
@@ -140,6 +148,26 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // Add function to update button states
+    private fun updateButtonTQStates(enabled: Boolean) {
+        findViewById<Button>(R.id.addTeam).apply {
+            isEnabled = enabled
+            alpha = if (enabled) 1.0f else 0.5f
+        }
+        findViewById<Button>(R.id.nextQuestion).apply {
+            isEnabled = enabled
+            alpha = if (enabled) 1.0f else 0.5f
+        }
+    }
+
+    private fun updateLoadGameButtonState() {
+        val hasGames = gameStateManager.getSavedGames().isNotEmpty()
+        binding.loadGameButton.apply {
+            isEnabled = hasGames
+            alpha = if (hasGames) 1.0f else 0.5f
+        }
+    }
+
     //resets timer
     private fun resetTimer() {
         timerJob?.cancel()
@@ -170,34 +198,43 @@ class MainActivity : AppCompatActivity() {
 
         _binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
         //initialize gameStateManager
         gameStateManager = GameStateManager(getSharedPreferences("GamePrefs", Context.MODE_PRIVATE))
 
+        //initially disable buttons
+        updateButtonTQStates(false)
+        updateLoadGameButtonState()
+
         try {
-            //look for autosave using id -1L which is designated for autosaves
-            gameStateManager.loadGame(-1L)?.let { autosave ->
+            val autosave = gameStateManager.loadGame(GameStateManager.AUTOSAVE_ID)
+            if (autosave != null)
+            {
                 if (isValidAutosave(autosave)) {
-                    loadAutosave(autosave)
+                    loadAutosave(GameStateManager.AUTOSAVE_ID)
+                    isGameActive = true
+                    updateButtonTQStates(true)
                     //start autosaving if it's a valid autoload
                     startAutoSave()
                     Toast.makeText(this, "Previous game restored", Toast.LENGTH_SHORT).show()
-                } else {
-                    //invalid autosave - start fresh
-                    resetAutoSave()
                 }
-            } ?: run {
-                //no autosave exists
-                resetAutoSave()
+                else {
+                    isGameActive = false
+                    updateButtonTQStates(false)
+                }
+            }
+            else {
+                Toast.makeText(this, "Failed to load autosave. Please create a new game.", Toast.LENGTH_SHORT).show()
+                isGameActive = false
+                updateButtonTQStates(false)
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            Toast.makeText(this, "Failed to load autosave. Starting fresh.", Toast.LENGTH_SHORT).show()
-            resetAutoSave()
+            Toast.makeText(this, "There was an error trying to load autosave, please review logs.", Toast.LENGTH_SHORT).show()
+
         }
-        startAutoSave()
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
-
 
 
         //restore timer state if it exists
@@ -249,22 +286,24 @@ class MainActivity : AppCompatActivity() {
         //show confirmation dialog boxes when buttons are pushed
         button1.setOnClickListener {
             Logger.log("New Game button pushed")
+            saveAutoSaveGameState()
             showConfirmationDialog("New Game")
         }
         button2.setOnClickListener {
             Logger.log("Add Team button pushed")
-            showConfirmationDialog("Add Team")
             saveAutoSaveGameState()
+            showConfirmationDialog("Add Team")
         }
         button3.setOnClickListener {
             Logger.log("Next Question button pushed")
-            showConfirmationDialog("Next Question")
             saveAutoSaveGameState()
+            showConfirmationDialog("Next Question")
         }
         binding.loadGameButton.setOnClickListener {
             Logger.log("Load Game button pushed")
-            showLoadGameDialog()
             saveAutoSaveGameState()
+            saveGameToHistory()
+            showLoadGameDialog()
         }
     }
 
@@ -275,6 +314,7 @@ class MainActivity : AppCompatActivity() {
                 autosave.timerSeconds >= 0 &&
                 (autosave.teams.isNotEmpty() || autosave.questionNumber == 0)
     }
+
     //function that autosaves every 5 seconds - 5000 milliseconds = 5 seconds
     private fun startAutoSave() {
         scope.launch {
@@ -283,29 +323,6 @@ class MainActivity : AppCompatActivity() {
                 saveAutoSaveGameState()
             }
         }
-    }
-
-
-
-
-    //function to create a new autosave
-    private fun createNewManualSave() {
-        val serializableTeams = teams.map { team ->
-            SerializableTeam(
-                name = team.name,
-                score = team.score,
-                questionScore = team.questionScore,
-                currentRank = team.currentRank,
-                isLocked = team.isLocked,
-                buttonStates = team.buttonStates
-            )
-        }
-
-        gameStateManager.saveCurrentGame(
-            questionNumber = questionNumber,
-            teams = serializableTeams,
-            timerSeconds = timerSeconds
-        )
     }
 
     private fun saveAutoSaveGameState() {
@@ -323,7 +340,9 @@ class MainActivity : AppCompatActivity() {
         gameStateManager.saveAutoSaveGame(
             questionNumber = questionNumber,
             teams = serializableTeams,
-            timerSeconds = timerSeconds
+            timerSeconds = timerSeconds,
+            gameName = currentGameName
+
         )
     }
 
@@ -332,52 +351,75 @@ class MainActivity : AppCompatActivity() {
         gameStateManager.saveAutoSaveGame(
             questionNumber = 0,
             teams = serializableTeams,
-            timerSeconds = 0
-        )
-    }
+            timerSeconds = 0,
+            gameName = "Unnamed Game AutoSave"
 
-
-    //function that saves all current game variables, switch/button states, and ranks
-    private fun saveCurrentGameState() {
-        val serializableTeams = teams.map { team ->
-            SerializableTeam(
-                name = team.name,
-                score = team.score,
-                questionScore = team.questionScore,
-                currentRank = team.currentRank,
-                isLocked = team.isLocked,
-                buttonStates = team.buttonStates
-            )
-        }
-
-        gameStateManager.saveCurrentGame(
-            questionNumber = questionNumber,
-            teams = serializableTeams,
-            timerSeconds = timerSeconds
         )
     }
 
     private fun showLoadGameDialog() {
-        val savedGames = gameStateManager.getSavedGames()
-        if (savedGames.isEmpty()) {
+        val games = gameStateManager.getSavedGames()
+
+        if (games.isEmpty()) {
             Toast.makeText(this, "No saved games found", Toast.LENGTH_SHORT).show()
             return
         }
 
+        //sort games: autosave first, then by date
+        val sortedGames = games.sortedWith(compareBy<SavedGameState>
+        { it.id == GameStateManager.AUTOSAVE_ID }
+            .thenByDescending { it.savedAt }
+        )
+
+        val displayNames = sortedGames.map { game ->
+            val timeStr = game.savedAt.format(DateTimeFormatter.ofPattern("MM/dd HH:mm"))
+            val prefix = if (game.id == GameStateManager.AUTOSAVE_ID) "📌 " else "   "
+            "$prefix${game.gameName} (Q${game.questionNumber}) - $timeStr"
+        }.toTypedArray()
+
         AlertDialog.Builder(this)
-            .setTitle("Load Game")
-            .setItems(savedGames.map { it.gameName }.toTypedArray()) { _, index ->
-                loadGame(savedGames[index].id)
+            .setTitle("Game History")
+            .setItems(displayNames) { _, index ->
+                loadGame(sortedGames[index].id)
+            }
+            .setPositiveButton("Cancel", null)
+            //debugging only for now
+
+            .setNeutralButton("Clear All History") { _, _ ->
+                showClearHistoryConfirmation()
+            }
+            .show()
+    }
+
+    private fun showClearHistoryConfirmation() {
+        AlertDialog.Builder(this)
+            .setTitle("Clear Game History")
+            .setMessage("Are you sure you want to clear all saved games and autosaves? This cannot be undone.")
+            .setPositiveButton("Clear All") { _, _ ->
+                scope.coroutineContext.cancelChildren()
+                gameStateManager.clearAllSavedGames()
+                //disable buttons until new game is made as all history is cleared and there is no active game
+                if (teams.isEmpty() && questionNumber == 0 && timerSeconds == 0)
+                {
+                    isGameActive = false
+                    updateLoadGameButtonState()
+                    updateButtonTQStates(false)
+                }
+                //there could be an active game running, keep an autosave incase this was done mid game
+                else
+                {
+                    isGameActive = true
+                    startAutoSave()
+                }
+                Toast.makeText(this, "All game history cleared", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Cancel", null)
             .show()
     }
 
-    private fun loadAutosave(savedGame: SavedGameState) {
-        //validate the saved game state
-        if (savedGame.teams.isNullOrEmpty()) {
-            throw IllegalStateException("Teams list is empty or null in the autosave.")
-        }
+    private fun loadAutosave(savedGameId: Long) {
+        // Get the saved game from GameStateManager
+        val savedGame = gameStateManager.loadGame(savedGameId) ?: throw IllegalStateException("No autosave found")
 
         //restore game state
         questionNumber = savedGame.questionNumber
@@ -413,6 +455,10 @@ class MainActivity : AppCompatActivity() {
         gameStateManager.loadGame(gameId)?.let { savedGame ->
             //convert SerializableTeam back to Team
             teams.clear()
+            binding.teamsContainer.removeAllViews()
+
+            //set current game name
+            currentGameName = savedGame.gameName.replace(" (Autosave)", "")
             teams.addAll(savedGame.teams.map { serializableTeam ->
                 Team(serializableTeam.name).apply {
                     score = serializableTeam.score
@@ -439,7 +485,10 @@ class MainActivity : AppCompatActivity() {
                 startTimer()
             }
 
-            Toast.makeText(this, "Game loaded successfully", Toast.LENGTH_SHORT).show()
+            Logger.log("Loading game with ID: $gameId")
+            Logger.log("Game data: ${savedGame.teams.size} teams, Question: ${savedGame.questionNumber}")
+            startAutoSave()
+            Toast.makeText(this, "Loaded game: ${savedGame.gameName}", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -659,24 +708,83 @@ class MainActivity : AppCompatActivity() {
                 }
                 "New Game" -> {
 
-                    //reset timer
-                    resetTimer()
+                    // Save current game to history before starting new one
+                    if(teams.isNotEmpty()) {
+                        saveGameToHistory()
+                    }
 
-                    //clear the teamsContainer
-                    binding.teamsContainer.removeAllViews()
+                    val input = EditText(this).apply {
+                        hint = "Enter Game Name"
+                        inputType = InputType.TYPE_CLASS_TEXT
+                        imeOptions = EditorInfo.IME_ACTION_DONE
+                    }
 
-                    //reset team counter
-                    binding.teamCountText.text = "Teams: 0"
+                    val dialog = AlertDialog.Builder(this)
+                        .setTitle("New Game")
+                        .setView(input)
+                        .setPositiveButton("Start New Game", null)
+                        .setNegativeButton("Cancel", null)
+                        .create()
 
-                    //reset question number
-                    questionNumber = 0
-                    binding.questionNumber.text = "Question: $questionNumber"
+                    dialog.window?.apply {
+                        setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
+                    }
+                    dialog.setOnDismissListener {
+                        hideKeyboard(input)
+                    }
 
-                    //clear current teams
-                    teams.clear()
+                    dialog.show()
 
-                    //create new auto save
-                    resetAutoSave()
+                    input.post {
+                        input.requestFocus()
+                        val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+                        imm.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
+                    }
+
+                    // Get the positive button after dialog is shown
+                    dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                        currentGameName = input.text.toString().trim()
+                        if (currentGameName.isBlank()) {
+                            input.error = "Game name cannot be empty"
+                            return@setOnClickListener
+                        }
+
+                        hideKeyboard(input)
+                        dialog.dismiss()
+                        isGameActive = true
+                        updateButtonTQStates(true)
+
+
+                        //reset timer
+                        resetTimer()
+
+                        //clear the teamsContainer
+                        binding.teamsContainer.removeAllViews()
+
+                        //reset team counter
+                        binding.teamCountText.text = "Teams: 0"
+
+                        //reset question number
+                        questionNumber = 0
+                        binding.questionNumber.text = "Question: $questionNumber"
+
+                        //clear current teams
+                        teams.clear()
+
+                        //save newly created game to history
+                        saveGameToHistory()
+
+                        //create autosave with the now newly created game with the new game name
+                        saveAutoSaveGameState()
+
+                        updateLoadGameButtonState()
+                        startAutoSave()
+                        Toast.makeText(
+                            this,
+                            "New game '$currentGameName' started!",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 }
             }
         }
@@ -696,6 +804,25 @@ class MainActivity : AppCompatActivity() {
         teams.add(newTeam)
         displayTeams()
         updateTeamCount()
+    }
+
+    private fun saveGameToHistory() {
+        val currentTeams = teams.map { team ->
+            SerializableTeam(
+                name = team.name,
+                score = team.score,
+                questionScore = team.questionScore,
+                currentRank = team.currentRank,
+                isLocked = team.isLocked,
+                buttonStates = team.buttonStates
+            )
+        }
+        gameStateManager.saveGameToHistory(
+            questionNumber = questionNumber,
+            teams = currentTeams,
+            timerSeconds = timerSeconds,
+            gameName = currentGameName
+        )
     }
 
     //function that adds score and total questions this score for new total
