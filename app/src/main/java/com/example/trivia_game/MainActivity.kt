@@ -325,6 +325,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    //saves to autosave specifically and overwrites it
     private fun saveAutoSaveGameState() {
         val serializableTeams = teams.map { team ->
             SerializableTeam(
@@ -357,6 +358,7 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
+    //function for load game dialog box that sorts games based on date/time
     private fun showLoadGameDialog() {
         val games = gameStateManager.getSavedGames()
 
@@ -384,13 +386,14 @@ class MainActivity : AppCompatActivity() {
             }
             .setPositiveButton("Cancel", null)
             //debugging only for now
-
+            /*
             .setNeutralButton("Clear All History") { _, _ ->
                 showClearHistoryConfirmation()
-            }
+            }*/
             .show()
     }
 
+    //function to clear game history - mainly for debugging right now
     private fun showClearHistoryConfirmation() {
         AlertDialog.Builder(this)
             .setTitle("Clear Game History")
@@ -418,7 +421,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadAutosave(savedGameId: Long) {
-        // Get the saved game from GameStateManager
+        //get the saved game from GameStateManager
         val savedGame = gameStateManager.loadGame(savedGameId) ?: throw IllegalStateException("No autosave found")
 
         //restore game state
@@ -485,8 +488,6 @@ class MainActivity : AppCompatActivity() {
                 startTimer()
             }
 
-            Logger.log("Loading game with ID: $gameId")
-            Logger.log("Game data: ${savedGame.teams.size} teams, Question: ${savedGame.questionNumber}")
             startAutoSave()
             Toast.makeText(this, "Loaded game: ${savedGame.gameName}", Toast.LENGTH_SHORT).show()
         }
@@ -708,7 +709,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 "New Game" -> {
 
-                    // Save current game to history before starting new one
+                    //save current game to history before starting new one
                     if(teams.isNotEmpty()) {
                         saveGameToHistory()
                     }
